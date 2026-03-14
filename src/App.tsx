@@ -363,8 +363,27 @@ export default function App() {
     const minPy = boundsY.minDelta * unit;
     const maxPy = boundsY.maxDelta * unit;
     
-    const offsetX = Math.max(minPx, Math.min(maxPx, dx));
-    const offsetY = Math.max(minPy, Math.min(maxPy, dy));
+    dx = currentPointerX - pointerX;
+    dy = currentPointerY - pointerY;
+
+    if (dx > maxPx) {
+      pointerX = currentPointerX - maxPx;
+      dx = maxPx;
+    } else if (dx < minPx) {
+      pointerX = currentPointerX - minPx;
+      dx = minPx;
+    }
+
+    if (dy > maxPy) {
+      pointerY = currentPointerY - maxPy;
+      dy = maxPy;
+    } else if (dy < minPy) {
+      pointerY = currentPointerY - minPy;
+      dy = minPy;
+    }
+
+    const offsetX = dx;
+    const offsetY = dy;
 
     state.pointerX = pointerX;
     state.pointerY = pointerY;
@@ -414,8 +433,16 @@ export default function App() {
     const clampedOffsetX = Math.max(minPx, Math.min(maxPx, dragState?.offsetX || 0));
     const clampedOffsetY = Math.max(minPy, Math.min(maxPy, dragState?.offsetY || 0));
     
-    const logicalDeltaX = Math.round(clampedOffsetX / unit);
-    const logicalDeltaY = Math.round(clampedOffsetY / unit);
+    let logicalDeltaX = Math.round(clampedOffsetX / unit);
+    let logicalDeltaY = Math.round(clampedOffsetY / unit);
+
+    if (logicalDeltaX !== 0 && logicalDeltaY !== 0) {
+      if (Math.abs(clampedOffsetX) >= Math.abs(clampedOffsetY)) {
+        logicalDeltaY = 0;
+      } else {
+        logicalDeltaX = 0;
+      }
+    }
 
     if (logicalDeltaX !== 0 || logicalDeltaY !== 0) {
       finalPieces = finalPieces.map(p => {
