@@ -88,11 +88,13 @@ interface VisualDragState {
 }
 
 export default function App() {
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    const saved = localStorage.getItem('klotski_theme');
-    if (saved) return saved === 'dark';
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const [userTheme, setUserTheme] = useState<'light' | 'dark' | null>(() => {
+    return localStorage.getItem('klotski_theme') as 'light' | 'dark' | null;
   });
+  const [systemDark, setSystemDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches);
+  
+  const isDarkMode = userTheme ? userTheme === 'dark' : systemDark;
+
   const [currentLevel, setCurrentLevel] = useState(() => {
     const saved = localStorage.getItem('klotski_level');
     return saved ? parseInt(saved, 10) : 0;
@@ -101,13 +103,25 @@ export default function App() {
   const [history, setHistory] = useState<Piece[][]>([]);
 
   useEffect(() => {
-    localStorage.setItem('klotski_theme', isDarkMode ? 'dark' : 'light');
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => setSystemDark(e.matches);
+    mediaQuery.addEventListener('change', handler);
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, []);
+
+  useEffect(() => {
     document.body.classList.toggle('dark', isDarkMode);
   }, [isDarkMode]);
 
   useEffect(() => {
     localStorage.setItem('klotski_level', currentLevel.toString());
   }, [currentLevel]);
+
+  const toggleTheme = () => {
+    const newTheme = isDarkMode ? 'light' : 'dark';
+    setUserTheme(newTheme);
+    localStorage.setItem('klotski_theme', newTheme);
+  };
 
   const loadLevel = (levelIndex: number) => {
     const level = LEVELS[levelIndex] || LEVELS[0];
@@ -543,7 +557,7 @@ export default function App() {
       </div>
 
       <div className="bottom-right-controls">
-        <button className="theme-toggle" onClick={() => setIsDarkMode(!isDarkMode)} aria-label="Toggle dark mode">
+        <button className="theme-toggle" onClick={toggleTheme} aria-label="Toggle dark mode">
           {isDarkMode ? <Sun size={14} /> : <Moon size={14} />}
         </button>
         <div className="level-indicator">#{currentLevel + 1}</div>
