@@ -1,23 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback, memo } from 'react';
 import { RotateCcw, Undo2, Check, Moon, Sun } from 'lucide-react';
 import { motion, AnimatePresence, motionValue } from 'framer-motion';
+import { Piece, PieceType, BOARD_W, BOARD_H, GAP, BOARD_PADDING } from './types';
 import { produceSolvableLevel, Difficulty, computeSolverMetrics } from './levelGeneration';
-
-export type PieceType = 'master' | 'v' | 'h' | 's';
-
-export interface Piece {
-  id: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  type: PieceType;
-}
-
-export const BOARD_W = 4;
-export const BOARD_H = 5;
-export const GAP = 6;
-export const BOARD_PADDING = 14;
 
 const EXIT_ROW = BOARD_H - 2;
 
@@ -546,10 +531,8 @@ export default function App() {
     [currentLevelIndex, loadLevel]
   );
 
-  console.log('App component rendering');
   return (
     <div className="app-container">
-      <h1>Test</h1>
       <div className="header">
         <div className="title-group">
           <h1 className="title">Klotski</h1>

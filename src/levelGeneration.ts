@@ -1,4 +1,4 @@
-import { Piece, PieceType, BOARD_W, BOARD_H } from './App';
+import { Piece, PieceType, BOARD_W, BOARD_H } from './types';
 
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'expert';
 
