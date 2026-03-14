@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback, memo } from 'react';
 import { RotateCcw, Undo2, Check, Moon, Sun } from 'lucide-react';
-import { motion, AnimatePresence, motionValue } from 'framer-motion';
+import { motion, AnimatePresence, motionValue, animate } from 'framer-motion';
 import { Piece, PieceType, BOARD_W, BOARD_H, GAP, BOARD_PADDING } from './types';
 import { produceSolvableLevel, Difficulty, computeSolverMetrics } from './levelGeneration';
+import { WebHaptics } from 'web-haptics';
 
 const EXIT_ROW = BOARD_H - 2;
 
-function useBoardEngine(initialPieces: Piece[]) {
+function useBoardEngine(initialPieces: Piece[], haptics?: any) {
   const [pieces, setPieces] = useState<Piece[]>(initialPieces);
   const piecesRef = useRef(initialPieces);
   const [history, setHistory] = useState<Piece[][]>([]);
@@ -60,8 +61,9 @@ function useBoardEngine(initialPieces: Piece[]) {
       piecesRef.current = newPieces;
       setPieces(newPieces);
       setMoves(m => m + 1);
+      haptics?.trigger('medium');
     },
-    []
+    [haptics]
   );
 
   const undo = useCallback(() => {
@@ -110,7 +112,9 @@ function useBoardEngine(initialPieces: Piece[]) {
 
 function useDragController(
   boardEngine: ReturnType<typeof useBoardEngine>,
-  cellSize: number
+  cellSize: number,
+  haptics?: any,
+  stagger?: boolean
 ) {
   const { pieces, isLegalMove, applyMove, isWon } = boardEngine;
   const [dragState, setDragState] = useState<{
@@ -128,15 +132,19 @@ function useDragController(
     currentMouseY: number;
     logicalPieceX: number;
     logicalPieceY: number;
+    lastDragDx?: number;
+    lastDragDy?: number;
   } | null>(null);
 
   const motionValues = useMemo(() => {
-    const map: Record<string, { x: any; y: any }> = {};
+    const map: Record<string, { x: any; y: any; scaleX: any; scaleY: any }> = {};
     const unit = cellSize + GAP;
     pieces.forEach(p => {
       map[p.id] = {
         x: motionValue(p.x * unit),
         y: motionValue(p.y * unit),
+        scaleX: motionValue(1),
+        scaleY: motionValue(1),
       };
     });
     return map;
@@ -144,14 +152,25 @@ function useDragController(
 
   useEffect(() => {
     const unit = cellSize + GAP;
-    pieces.forEach(p => {
+    pieces.forEach((p, i) => {
       const mv = motionValues[p.id];
       if (mv) {
-        mv.x.set(p.x * unit);
-        mv.y.set(p.y * unit);
+        if (stagger) {
+          // Initial entry animation
+          mv.y.set(p.y * unit + 20);
+          mv.scaleX.set(0.85);
+          mv.scaleY.set(0.85);
+          animate(mv.x, p.x * unit, { type: 'spring', stiffness: 500, damping: 40, delay: i * 0.03 });
+          animate(mv.y, p.y * unit, { type: 'spring', stiffness: 500, damping: 40, delay: i * 0.03 });
+          animate(mv.scaleX, 1, { type: 'spring', stiffness: 500, damping: 40, delay: i * 0.03 });
+          animate(mv.scaleY, 1, { type: 'spring', stiffness: 500, damping: 40, delay: i * 0.03 });
+        } else {
+          animate(mv.x, p.x * unit, { type: 'spring', stiffness: 500, damping: 40 });
+          animate(mv.y, p.y * unit, { type: 'spring', stiffness: 500, damping: 40 });
+        }
       }
     });
-  }, [pieces, cellSize, motionValues]);
+  }, [pieces, cellSize, motionValues, stagger]);
 
   const unit = useMemo(() => cellSize + GAP, [cellSize]);
   const threshold = useMemo(() => unit * 0.55, [unit]);
@@ -165,6 +184,7 @@ function useDragController(
     (e: React.PointerEvent, piece: Piece) => {
       if (isWon) return;
       e.currentTarget?.setPointerCapture?.(e.pointerId);
+      haptics?.trigger('light');
 
       pointerRef.current = {
         pieceId: piece.id,
@@ -178,8 +198,8 @@ function useDragController(
 
       const mv = motionValues[piece.id];
       if (mv) {
-        mv.x.set(piece.x * unit);
-        mv.y.set(piece.y * unit);
+        animate(mv.x, piece.x * unit, { type: 'spring', stiffness: 600, damping: 30 });
+        animate(mv.y, piece.y * unit, { type: 'spring', stiffness: 600, damping: 30 });
       }
 
       setDragState({ pieceId: piece.id, offsetX: 0, offsetY: 0 });
@@ -251,10 +271,68 @@ function useDragController(
 
         const mv = motionValues[state.pieceId];
         if (mv) {
-          const clampedX = Math.max(-unit * 0.48, Math.min(unit * 0.48, remainingDx));
-          const clampedY = Math.max(-unit * 0.48, Math.min(unit * 0.48, remainingDy));
+          // Rubber-band formula for elastic resistance
+          const rubberBand = (excess: number) => {
+            const sign = Math.sign(excess);
+            const abs = Math.abs(excess);
+            return sign * (abs * 0.18 * (1 - abs / (unit * 2)));
+          };
+
+          const clampedX = Math.abs(remainingDx) > unit * 0.48 ? rubberBand(remainingDx) : remainingDx;
+          const clampedY = Math.abs(remainingDy) > unit * 0.48 ? rubberBand(remainingDy) : remainingDy;
+          
           mv.x.set(state.logicalPieceX * unit + clampedX);
           mv.y.set(state.logicalPieceY * unit + clampedY);
+
+          // Squash & Stretch based on velocity
+          const velX = Math.abs(dragDx - (state.lastDragDx || 0));
+          const velY = Math.abs(dragDy - (state.lastDragDy || 0));
+          state.lastDragDx = dragDx;
+          state.lastDragDy = dragDy;
+
+          const stretchX = 1 + Math.min(0.08, velX / 100);
+          const stretchY = 1 + Math.min(0.08, velY / 100);
+          mv.scaleX.set(stretchX - (stretchY - 1));
+          mv.scaleY.set(stretchY - (stretchX - 1));
+
+          // Collision nudge for neighbors
+          pieces.forEach(p => {
+            if (p.id === state.pieceId) return;
+            const pmv = motionValues[p.id];
+            if (!pmv) return;
+
+            const distThreshold = unit * 0.3;
+            let nudgeX = 0;
+            let nudgeY = 0;
+
+            if (Math.abs(clampedX) > 0) {
+              const isNeighborX = p.y < piece.y + piece.h && p.y + p.h > piece.y;
+              if (isNeighborX) {
+                const isRight = p.x === piece.x + piece.w;
+                const isLeft = p.x + p.w === piece.x;
+                if (isRight && clampedX > 0) nudgeX = Math.min(6, clampedX * 0.4);
+                if (isLeft && clampedX < 0) nudgeX = Math.max(-6, clampedX * 0.4);
+              }
+            }
+            if (Math.abs(clampedY) > 0) {
+              const isNeighborY = p.x < piece.x + piece.w && p.x + p.w > piece.x;
+              if (isNeighborY) {
+                const isBottom = p.y === piece.y + piece.h;
+                const isTop = p.y + p.h === piece.y;
+                if (isBottom && clampedY > 0) nudgeY = Math.min(6, clampedY * 0.4);
+                if (isTop && clampedY < 0) nudgeY = Math.max(-6, clampedY * 0.4);
+              }
+            }
+
+            if (nudgeX !== 0 || nudgeY !== 0) {
+              animate(pmv.x, p.x * unit + nudgeX, { type: 'spring', stiffness: 800, damping: 30 });
+              animate(pmv.y, p.y * unit + nudgeY, { type: 'spring', stiffness: 800, damping: 30 });
+            } else {
+              animate(pmv.x, p.x * unit, { type: 'spring', stiffness: 800, damping: 30 });
+              animate(pmv.y, p.y * unit, { type: 'spring', stiffness: 800, damping: 30 });
+            }
+          });
+
           setDragState({ pieceId: state.pieceId, offsetX: clampedX, offsetY: clampedY });
         }
 
@@ -284,8 +362,10 @@ function useDragController(
       const state = pointerRef.current;
       const mv = motionValues[state.pieceId];
       if (mv) {
-        mv.x.set(state.logicalPieceX * unit);
-        mv.y.set(state.logicalPieceY * unit);
+        animate(mv.x, state.logicalPieceX * unit, { type: 'spring', stiffness: 600, damping: 38 });
+        animate(mv.y, state.logicalPieceY * unit, { type: 'spring', stiffness: 600, damping: 38 });
+        animate(mv.scaleX, 1, { type: 'spring', stiffness: 500, damping: 30 });
+        animate(mv.scaleY, 1, { type: 'spring', stiffness: 500, damping: 30 });
       }
 
       pointerRef.current = null;
@@ -320,17 +400,15 @@ const PieceComponent = memo(function PieceComponent({
   onPointerMove,
   onPointerUp,
   onPointerCancel,
-  staggerDelay,
 }: {
   piece: Piece;
   cellSize: number;
   isDragging: boolean;
-  motionValues: Record<string, { x: any; y: any }>;
+  motionValues: Record<string, { x: any; y: any; scaleX: any; scaleY: any }>;
   onPointerDown: (e: React.PointerEvent, piece: Piece) => void;
   onPointerMove: (e: React.PointerEvent) => void;
   onPointerUp: (e: React.PointerEvent) => void;
   onPointerCancel: (e: React.PointerEvent) => void;
-  staggerDelay: number;
 }) {
   const unit = cellSize + GAP;
   const mv = motionValues[piece.id];
@@ -343,13 +421,13 @@ const PieceComponent = memo(function PieceComponent({
       initial={{ opacity: 0, scale: 0.85 }}
       animate={{
         opacity: 1,
-        scale: 1,
+        scale: isDragging ? 1.04 : 1,
         zIndex: isDragging ? 20 : 1,
       }}
       transition={
         isDragging
-          ? { type: 'spring', stiffness: 420, damping: 26 }
-          : { type: 'spring', stiffness: 520, damping: 42, delay: staggerDelay }
+          ? { type: 'spring', stiffness: 500, damping: 28 }
+          : { type: 'spring', stiffness: 520, damping: 42 }
       }
       style={{
         width: piece.w * cellSize + (piece.w - 1) * GAP,
@@ -359,8 +437,11 @@ const PieceComponent = memo(function PieceComponent({
         left: BOARD_PADDING,
         touchAction: 'none',
         willChange: 'transform',
+        contain: 'layout style paint',
         x: mv.x,
         y: mv.y,
+        scaleX: mv.scaleX,
+        scaleY: mv.scaleY,
       }}
       onPointerDown={e => onPointerDown(e, piece)}
       onPointerMove={onPointerMove}
@@ -418,7 +499,9 @@ export default function App() {
     localStorage.setItem('klotski_theme', newTheme);
   };
 
-  const boardEngine = useBoardEngine(levelPieces);
+  const haptics = useMemo(() => new WebHaptics(), []);
+
+  const boardEngine = useBoardEngine(levelPieces, haptics);
   const { pieces, moves, isWon, undo, reset, solverData } = boardEngine;
 
   useEffect(() => {
@@ -446,8 +529,6 @@ export default function App() {
     return () => window.removeEventListener('resize', updateSize);
   }, []);
 
-  const { dragState, motionValues, handlePointerDown, handlePointerMove, handlePointerUp, handlePointerCancel } = useDragController(boardEngine, cellSize);
-
   const [stagger, setStagger] = useState(true);
   useEffect(() => {
     if (stagger) {
@@ -456,8 +537,8 @@ export default function App() {
     }
   }, [stagger]);
 
-  // const haptics = useMemo(() => new WebHaptics(), []);
-  const haptics = useMemo(() => ({ trigger: () => {} }), []);
+  const { dragState, motionValues, handlePointerDown, handlePointerMove, handlePointerUp, handlePointerCancel } = useDragController(boardEngine, cellSize, haptics, stagger);
+
   // const [playSelectRaw] = useSound('/audio/click1.ogg', { volume: 0.15 });
   // const [playMoveRaw] = useSound('/audio/switch1.ogg', { volume: 0.25 });
   // const [playWinRaw] = useSound('/audio/switch33.ogg', { volume: 0.4 });
@@ -546,6 +627,23 @@ export default function App() {
     [currentLevelIndex, loadLevel]
   );
 
+  const masterNearExit = useMemo(() => {
+    const master = pieces.find(p => p.id === 'master');
+    return master ? master.y >= BOARD_H - 3 : false;
+  }, [pieces]);
+
+  const confetti = useMemo(() => {
+    return Array.from({ length: 16 }).map((_, i) => ({
+      id: i,
+      x: Math.random() * 300 - 150,
+      y: Math.random() * 300 - 150,
+      rotate: Math.random() * 360,
+      scale: Math.random() * 0.5 + 0.5,
+      color: i % 2 === 0 ? '#ea3323' : '#ffffff',
+      delay: Math.random() * 0.2,
+    }));
+  }, []);
+
   return (
     <div className="app-container">
       <div className="header">
@@ -587,7 +685,7 @@ export default function App() {
           }}
         />
         <div
-          className="exit-indicator"
+          className={`exit-indicator ${masterNearExit ? 'active' : ''}`}
           style={{
             left: BOARD_PADDING + cellSize + GAP,
             width: 2 * cellSize + GAP,
@@ -605,7 +703,6 @@ export default function App() {
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerCancel}
-            staggerDelay={stagger ? 0.03 * index : 0}
           />
         ))}
       </div>
@@ -653,6 +750,32 @@ export default function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.4 }}
           >
+            {confetti.map(c => (
+              <motion.div
+                key={c.id}
+                style={{
+                  position: 'absolute',
+                  width: 12,
+                  height: 12,
+                  borderRadius: '50%',
+                  backgroundColor: c.color,
+                  zIndex: 101,
+                }}
+                initial={{ x: 0, y: 0, opacity: 1, scale: 0 }}
+                animate={{
+                  x: c.x,
+                  y: c.y,
+                  rotate: c.rotate,
+                  scale: c.scale,
+                  opacity: [1, 1, 0],
+                }}
+                transition={{
+                  duration: 1.2,
+                  delay: c.delay,
+                  ease: 'easeOut',
+                }}
+              />
+            ))}
             <motion.div
               className="win-card"
               initial={{ y: 30, scale: 0.95, opacity: 0 }}

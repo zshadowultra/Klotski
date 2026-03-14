@@ -212,9 +212,21 @@ body {
   height: 6px;
   background: var(--accent);
   border-radius: 6px 6px 0 0;
-  opacity: 0.9;
-  box-shadow: 0 -2px 12px rgba(234, 51, 35, 0.4);
+  opacity: 0.4;
+  box-shadow: 0 -2px 8px rgba(234, 51, 35, 0.2);
   z-index: 5;
+  transition: all 0.4s ease;
+}
+
+.exit-indicator.active {
+  opacity: 1;
+  box-shadow: 0 -2px 16px rgba(234, 51, 35, 0.6);
+  animation: pulse-glow 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.7; box-shadow: 0 -2px 12px rgba(234, 51, 35, 0.4); }
+  50% { opacity: 1; box-shadow: 0 -2px 20px rgba(234, 51, 35, 0.8); }
 }
 
 .piece {
@@ -234,7 +246,6 @@ body {
   align-items: center;
   user-select: none;
   cursor: grab;
-  transition: box-shadow 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.3s ease;
   touch-action: none;
   will-change: transform;
   contain: layout style paint;
