@@ -8,8 +8,3 @@ export interface Piece {
   h: number;
   type: PieceType;
 }
-
-export const BOARD_W = 4;
-export const BOARD_H = 5;
-export const GAP = 6;
-export const BOARD_PADDING = 14;

@@ -1,80 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { RotateCcw, Undo2, Check, Moon, Sun } from 'lucide-react';
+import { RotateCcw, Undo2, Check, Moon, Sun, ChevronLeft, ChevronRight } from 'lucide-react';
 import { WebHaptics } from 'web-haptics';
 import { motion, AnimatePresence } from 'motion/react';
 import useSound from 'use-sound';
-
-type PieceType = 'master' | 'v' | 'h' | 's';
-
-interface Piece {
-  id: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  type: PieceType;
-}
-
-const LEVELS: Piece[][] = [
-  // Level 1: Very Easy
-  [
-    { id: 'master', x: 1, y: 1, w: 2, h: 2, type: 'master' },
-    { id: 'v1', x: 0, y: 1, w: 1, h: 2, type: 'v' },
-    { id: 'v2', x: 3, y: 1, w: 1, h: 2, type: 'v' },
-    { id: 'h1', x: 1, y: 0, w: 2, h: 1, type: 'h' },
-    { id: 's1', x: 1, y: 3, w: 1, h: 1, type: 's' },
-    { id: 's2', x: 2, y: 3, w: 1, h: 1, type: 's' },
-  ],
-  // Level 2: Easy
-  [
-    { id: 'master', x: 1, y: 0, w: 2, h: 2, type: 'master' },
-    { id: 'v1', x: 0, y: 0, w: 1, h: 2, type: 'v' },
-    { id: 'v2', x: 3, y: 0, w: 1, h: 2, type: 'v' },
-    { id: 'h1', x: 1, y: 2, w: 2, h: 1, type: 'h' },
-    { id: 's1', x: 0, y: 2, w: 1, h: 1, type: 's' },
-    { id: 's2', x: 3, y: 2, w: 1, h: 1, type: 's' },
-    { id: 's3', x: 1, y: 3, w: 1, h: 1, type: 's' },
-    { id: 's4', x: 2, y: 3, w: 1, h: 1, type: 's' },
-  ],
-  // Level 3: Medium (Pennant Puzzle)
-  [
-    { id: 'master', x: 0, y: 0, w: 2, h: 2, type: 'master' },
-    { id: 'v1', x: 2, y: 0, w: 1, h: 2, type: 'v' },
-    { id: 'v2', x: 3, y: 0, w: 1, h: 2, type: 'v' },
-    { id: 'v3', x: 2, y: 2, w: 1, h: 2, type: 'v' },
-    { id: 'v4', x: 3, y: 2, w: 1, h: 2, type: 'v' },
-    { id: 'h1', x: 0, y: 2, w: 2, h: 1, type: 'h' },
-    { id: 'h2', x: 0, y: 3, w: 2, h: 1, type: 'h' },
-    { id: 's1', x: 0, y: 4, w: 1, h: 1, type: 's' },
-    { id: 's2', x: 1, y: 4, w: 1, h: 1, type: 's' },
-  ],
-  // Level 4: Hard (Forget-me-not)
-  [
-    { id: 'v1', x: 0, y: 0, w: 1, h: 2, type: 'v' },
-    { id: 'master', x: 1, y: 0, w: 2, h: 2, type: 'master' },
-    { id: 'v2', x: 3, y: 0, w: 1, h: 2, type: 'v' },
-    { id: 'v3', x: 0, y: 2, w: 1, h: 2, type: 'v' },
-    { id: 'h1', x: 1, y: 2, w: 2, h: 1, type: 'h' },
-    { id: 'v4', x: 3, y: 2, w: 1, h: 2, type: 'v' },
-    { id: 's1', x: 1, y: 3, w: 1, h: 1, type: 's' },
-    { id: 's2', x: 2, y: 3, w: 1, h: 1, type: 's' },
-    { id: 's3', x: 0, y: 4, w: 1, h: 1, type: 's' },
-    { id: 's4', x: 3, y: 4, w: 1, h: 1, type: 's' },
-  ],
-  // Level 5: Expert (Red Donkey)
-  [
-    { id: 'v1', x: 0, y: 0, w: 1, h: 2, type: 'v' },
-    { id: 'master', x: 1, y: 0, w: 2, h: 2, type: 'master' },
-    { id: 'v2', x: 3, y: 0, w: 1, h: 2, type: 'v' },
-    { id: 'v3', x: 0, y: 2, w: 1, h: 2, type: 'v' },
-    { id: 'h1', x: 1, y: 2, w: 2, h: 1, type: 'h' },
-    { id: 'v4', x: 3, y: 2, w: 1, h: 2, type: 'v' },
-    { id: 's1', x: 1, y: 3, w: 1, h: 1, type: 's' },
-    { id: 's2', x: 2, y: 3, w: 1, h: 1, type: 's' },
-    { id: 's3', x: 1, y: 4, w: 1, h: 1, type: 's' },
-    { id: 's4', x: 2, y: 4, w: 1, h: 1, type: 's' },
-  ]
-];
+import { Piece } from './types';
+import { LEVELS } from './levels';
 
 const BOARD_W = 4;
 const BOARD_H = 5;
@@ -133,12 +63,24 @@ export default function App() {
     setStagger(true);
   };
 
+  const handlePrevLevel = () => {
+    if (currentLevel > 0) {
+      haptics.trigger('medium');
+      playSelect();
+      const next = currentLevel - 1;
+      setCurrentLevel(next);
+      loadLevel(next);
+    }
+  };
+
   const handleNextLevel = () => {
-    haptics.trigger('medium');
-    playSelect();
-    const next = Math.min(currentLevel + 1, LEVELS.length - 1);
-    setCurrentLevel(next);
-    loadLevel(next);
+    if (currentLevel < LEVELS.length - 1) {
+      haptics.trigger('medium');
+      playSelect();
+      const next = currentLevel + 1;
+      setCurrentLevel(next);
+      loadLevel(next);
+    }
   };
   const [moves, setMoves] = useState(0);
   const [isWon, setIsWon] = useState(false);
@@ -587,7 +529,15 @@ export default function App() {
         <button className="theme-toggle" onClick={toggleTheme} aria-label="Toggle dark mode">
           {isDarkMode ? <Sun size={14} /> : <Moon size={14} />}
         </button>
-        <div className="level-indicator">#{currentLevel + 1}</div>
+        <div className="level-selector">
+          <button onClick={handlePrevLevel} disabled={currentLevel === 0} className="level-nav-btn">
+            <ChevronLeft size={14} />
+          </button>
+          <div className="level-indicator">Level {currentLevel + 1}</div>
+          <button onClick={handleNextLevel} disabled={currentLevel === LEVELS.length - 1} className="level-nav-btn">
+            <ChevronRight size={14} />
+          </button>
+        </div>
       </div>
 
       <AnimatePresence>
