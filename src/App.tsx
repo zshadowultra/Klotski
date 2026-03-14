@@ -84,6 +84,7 @@ function useBoardEngine(initialPieces: Piece[]) {
   const undo = useCallback(() => {
     if (!history.length || isWon) return;
     const prev = history[history.length - 1];
+    if (!prev) return;
     piecesRef.current = prev;
     setPieces(prev);
     setHistory(h => h.slice(0, -1));
@@ -179,7 +180,7 @@ function useDragController(
   const handlePointerDown = useCallback(
     (e: React.PointerEvent, piece: Piece) => {
       if (isWon) return;
-      e.currentTarget.setPointerCapture(e.pointerId);
+      e.currentTarget?.setPointerCapture?.(e.pointerId);
 
       pointerRef.current = {
         pieceId: piece.id,
@@ -292,7 +293,7 @@ function useDragController(
   const handlePointerUp = useCallback(
     (e: React.PointerEvent) => {
       if (!pointerRef.current) return;
-      e.currentTarget.releasePointerCapture(e.pointerId);
+      e.currentTarget?.releasePointerCapture?.(e.pointerId);
 
       stopRAF();
 
@@ -477,21 +478,21 @@ export default function App() {
   const playSelect = useCallback(() => {
     const now = Date.now();
     if (now - lastSoundTime.current.select > 100) {
-      playSelectRaw();
+      playSelectRaw?.();
       lastSoundTime.current.select = now;
     }
   }, [playSelectRaw]);
   const playMove = useCallback(() => {
     const now = Date.now();
     if (now - lastSoundTime.current.move > 120) {
-      playMoveRaw();
+      playMoveRaw?.();
       lastSoundTime.current.move = now;
     }
   }, [playMoveRaw]);
   const playWin = useCallback(() => {
     const now = Date.now();
     if (now - lastSoundTime.current.win > 1000) {
-      playWinRaw();
+      playWinRaw?.();
       lastSoundTime.current.win = now;
     }
   }, [playWinRaw]);
@@ -602,7 +603,7 @@ export default function App() {
       </div>
 
       <div className="controls">
-        <button className="btn" onClick={handleUndoClick} disabled={boardEngine.history.length === 0 || isWon}>
+        <button className="btn" onClick={handleUndoClick} disabled={!boardEngine.history?.length || isWon}>
           <Undo2 size={18} />
           Undo
         </button>

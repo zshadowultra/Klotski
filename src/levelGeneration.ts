@@ -24,8 +24,10 @@ export function computeSolverMetrics(startPieces: Piece[]) {
   visited.add(canonical(startPieces));
 
   let shortestPathLength = Infinity;
-  while (queue.length) {
-    const { pieces, path } = queue.shift()!;
+  while (queue.length > 0) {
+    const item = queue.shift();
+    if (!item) continue;
+    const { pieces, path } = item;
     const key = canonical(pieces);
     if (key === SOLVED_KEY) {
       shortestPathLength = path.length;
