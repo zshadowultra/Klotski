@@ -87,6 +87,18 @@ export default function App() {
   const [resetCount, setResetCount] = useState(0);
   const [cellSize, setCellSize] = useState(70);
   const [dragState, setDragState] = useState<VisualDragState | null>(null);
+  const [moveClicks, setMoveClicks] = useState<number[]>([]);
+  const [isSkipRevealed, setIsSkipRevealed] = useState(false);
+
+  const handleMovesClick = () => {
+    const now = Date.now();
+    const recentClicks = [...moveClicks, now].filter(t => now - t < 10000);
+    setMoveClicks(recentClicks);
+    if (recentClicks.length >= 15 && !isSkipRevealed) {
+      setIsSkipRevealed(true);
+      haptics.trigger('success');
+    }
+  };
   const dragRef = useRef<{
     pieceId: string;
     pointerX: number;
@@ -443,7 +455,7 @@ export default function App() {
         <div className="title-group">
           <h1 className="title">Klotski</h1>
         </div>
-        <div className="stats">
+        <div className="stats" onClick={handleMovesClick} style={{ cursor: 'pointer', userSelect: 'none' }}>
           <span className="stat-label">Moves</span>
           <span className="stat-value">{moves.toString().padStart(3, '0')}</span>
         </div>
@@ -534,9 +546,25 @@ export default function App() {
             <ChevronLeft size={14} />
           </button>
           <div className="level-indicator">Level {currentLevel + 1}</div>
-          <button onClick={handleNextLevel} disabled={currentLevel === LEVELS.length - 1} className="level-nav-btn">
-            <ChevronRight size={14} />
-          </button>
+          <AnimatePresence>
+            {isSkipRevealed && (
+              <motion.button 
+                initial={{ width: 0, opacity: 0, x: -10 }}
+                animate={{ width: 'auto', opacity: 1, x: 0 }}
+                exit={{ width: 0, opacity: 0, x: -10 }}
+                transition={{ 
+                  width: { duration: 0.6, ease: [0.2, 0.8, 0.2, 1] },
+                  opacity: { duration: 0.4, delay: 0.2 },
+                  x: { duration: 0.4, delay: 0.2 }
+                }}
+                onClick={handleNextLevel} 
+                disabled={currentLevel === LEVELS.length - 1} 
+                className="level-nav-btn overflow-hidden"
+              >
+                <ChevronRight size={14} />
+              </motion.button>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
