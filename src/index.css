@@ -10,8 +10,9 @@
   --accent: #ea3323;
   --shadow-soft: 0 32px 64px rgba(0,0,0,0.1), 0 8px 16px rgba(0,0,0,0.04);
   --shadow-press: inset 0 1px 0 rgba(255,255,255,0.9), inset 0 -1px 0 rgba(10,10,10,0.05);
-  --radius: 28px;
-  --piece-radius: 22px;
+  --radius: 32px;
+  --piece-radius: 18px;
+  --grid-line: rgba(10,10,10,0.05);
 }
 
 * { box-sizing: border-box; }
@@ -55,13 +56,13 @@ body {
   gap: 36px;
   width: 100%;
   max-width: 520px;
-  padding: 64px 32px;
+  padding: 80px 40px;
 }
 
 .header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
   width: 100%;
   padding: 0 8px;
 }
@@ -103,7 +104,7 @@ body {
   font-weight: 800;
   letter-spacing: -0.05em;
   margin: 0;
-  line-height: 0.9;
+  line-height: 1;
   text-shadow: 0 2px 12px rgba(0,0,0,0.05);
 }
 
@@ -162,8 +163,8 @@ body {
   top: 0; left: 0; right: 0; bottom: 0;
   /* Crosshair grid pattern for a more technical look */
   background-image: 
-    linear-gradient(rgba(10,10,10,0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(10,10,10,0.05) 1px, transparent 1px);
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
   border-radius: var(--radius);
   pointer-events: none;
 }
@@ -261,13 +262,13 @@ body {
 .piece.v .piece-inner {
   width: 20px;
   height: 48px;
-  border-radius: 10px;
+  border-radius: 6px;
 }
 
 .piece.h .piece-inner {
   width: 48px;
   height: 20px;
-  border-radius: 10px;
+  border-radius: 6px;
 }
 
 .piece.master .piece-inner {
@@ -275,7 +276,7 @@ body {
   box-shadow: inset 0 2px 6px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.1);
   width: 56px;
   height: 56px;
-  border-radius: 16px;
+  border-radius: 12px;
 }
 
 .controls {
@@ -318,6 +319,42 @@ body {
   opacity: 0.4;
   cursor: not-allowed;
   transform: none;
+}
+
+.bottom-right-controls {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.theme-toggle {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  opacity: 0.5;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 50%;
+  transition: opacity 0.2s, background 0.2s;
+}
+
+.theme-toggle:hover {
+  opacity: 0.8;
+  background: var(--line);
+}
+
+.level-indicator {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  opacity: 0.5;
+  letter-spacing: 0.05em;
 }
 
 .overlay {
@@ -402,4 +439,110 @@ body {
   letter-spacing: 0.2em;
   color: var(--muted);
   font-weight: 800;
+}
+
+/* Dark Mode Overrides */
+body.dark {
+  --bg: #121212;
+  --card: rgba(30,30,30,0.65);
+  --ink: #f0f0f0;
+  --muted: #888888;
+  --line: rgba(255,255,255,0.08);
+  --line-strong: rgba(255,255,255,0.15);
+  --accent: #ff4433;
+  --shadow-soft: 0 32px 64px rgba(0,0,0,0.4), 0 8px 16px rgba(0,0,0,0.2);
+  --shadow-press: inset 0 1px 0 rgba(255,255,255,0.05), inset 0 -1px 0 rgba(0,0,0,0.5);
+  --grid-line: rgba(255,255,255,0.03);
+  
+  background-image: 
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E"),
+    radial-gradient(circle at 15% 15%, rgba(255,255,255,0.03), transparent 45%),
+    radial-gradient(circle at 85% 85%, rgba(0,0,0,0.4), transparent 45%),
+    linear-gradient(180deg, #1a1a1a 0%, #121212 100%);
+}
+
+body.dark .stats {
+  background: rgba(30,30,30,0.6);
+  border-color: rgba(255,255,255,0.1);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px var(--line);
+}
+
+body.dark .board-container {
+  background: #222;
+  border-color: rgba(255,255,255,0.05);
+  box-shadow: 
+    inset 0 8px 24px rgba(0,0,0,0.4), 
+    inset 0 2px 6px rgba(0,0,0,0.5), 
+    0 2px 0 rgba(255,255,255,0.05);
+}
+
+body.dark .piece {
+  background: linear-gradient(135deg, #3a3a3a 0%, #2a2a2a 100%);
+  border-color: rgba(255,255,255,0.1);
+  box-shadow: 
+    0 8px 16px rgba(0,0,0,0.3), 
+    0 2px 4px rgba(0,0,0,0.2), 
+    inset 0 -2px 4px rgba(0,0,0,0.4),
+    inset 0 2px 4px rgba(255,255,255,0.05);
+}
+
+body.dark .piece::before {
+  border-color: rgba(0,0,0,0.5);
+}
+
+body.dark .piece.dragging {
+  box-shadow: 
+    0 32px 64px rgba(0,0,0,0.4), 
+    0 12px 24px rgba(0,0,0,0.3), 
+    inset 0 2px 4px rgba(255,255,255,0.1);
+}
+
+body.dark .piece.master {
+  background: linear-gradient(135deg, #333 0%, #111 100%);
+  border-color: #444;
+  box-shadow: 
+    0 12px 24px rgba(0,0,0,0.5), 
+    inset 0 2px 4px rgba(255,255,255,0.1),
+    inset 0 -2px 4px rgba(0,0,0,0.8);
+}
+
+body.dark .piece-inner {
+  background: rgba(0,0,0,0.3);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.05);
+}
+
+body.dark .piece.master .piece-inner {
+  background: rgba(255,255,255,0.02);
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.8), 0 1px 0 rgba(255,255,255,0.05);
+}
+
+body.dark .btn {
+  background: rgba(40,40,40,0.7);
+  border-color: var(--line-strong);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+body.dark .btn:hover:not(:disabled) {
+  background: rgba(50,50,50,0.95);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+
+body.dark .overlay {
+  background: rgba(18, 18, 18, 0.7);
+}
+
+body.dark .win-card {
+  background: linear-gradient(180deg, rgba(40,40,40,0.98), rgba(30,30,30,0.9));
+  border-color: rgba(255,255,255,0.1);
+}
+
+body.dark .win-icon {
+  background: #f0f0f0;
+  color: #111;
+  box-shadow: 0 16px 32px rgba(0,0,0,0.4), inset 0 2px 4px rgba(0,0,0,0.1);
+}
+
+body.dark .win-stats {
+  background: rgba(0,0,0,0.2);
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.2);
 }

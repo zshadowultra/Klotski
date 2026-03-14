@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { RotateCcw, Undo2, Check } from 'lucide-react';
+import { RotateCcw, Undo2, Check, Moon, Sun } from 'lucide-react';
 import { WebHaptics } from 'web-haptics';
 import { motion, AnimatePresence } from 'motion/react';
 import useSound from 'use-sound';
@@ -15,23 +15,71 @@ interface Piece {
   type: PieceType;
 }
 
-// Classic "Forget-me-not" Layout
-const INITIAL_PIECES: Piece[] = [
-  { id: 'v1', x: 0, y: 0, w: 1, h: 2, type: 'v' },
-  { id: 'master', x: 1, y: 0, w: 2, h: 2, type: 'master' },
-  { id: 'v2', x: 3, y: 0, w: 1, h: 2, type: 'v' },
-  { id: 'v3', x: 0, y: 2, w: 1, h: 2, type: 'v' },
-  { id: 'h1', x: 1, y: 2, w: 2, h: 1, type: 'h' },
-  { id: 'v4', x: 3, y: 2, w: 1, h: 2, type: 'v' },
-  { id: 's1', x: 1, y: 3, w: 1, h: 1, type: 's' },
-  { id: 's2', x: 2, y: 3, w: 1, h: 1, type: 's' },
-  { id: 's3', x: 0, y: 4, w: 1, h: 1, type: 's' },
-  { id: 's4', x: 3, y: 4, w: 1, h: 1, type: 's' },
+const LEVELS: Piece[][] = [
+  // Level 1: Very Easy
+  [
+    { id: 'master', x: 1, y: 1, w: 2, h: 2, type: 'master' },
+    { id: 'v1', x: 0, y: 1, w: 1, h: 2, type: 'v' },
+    { id: 'v2', x: 3, y: 1, w: 1, h: 2, type: 'v' },
+    { id: 'h1', x: 1, y: 0, w: 2, h: 1, type: 'h' },
+    { id: 's1', x: 1, y: 3, w: 1, h: 1, type: 's' },
+    { id: 's2', x: 2, y: 3, w: 1, h: 1, type: 's' },
+  ],
+  // Level 2: Easy
+  [
+    { id: 'master', x: 1, y: 0, w: 2, h: 2, type: 'master' },
+    { id: 'v1', x: 0, y: 0, w: 1, h: 2, type: 'v' },
+    { id: 'v2', x: 3, y: 0, w: 1, h: 2, type: 'v' },
+    { id: 'h1', x: 1, y: 2, w: 2, h: 1, type: 'h' },
+    { id: 's1', x: 0, y: 2, w: 1, h: 1, type: 's' },
+    { id: 's2', x: 3, y: 2, w: 1, h: 1, type: 's' },
+    { id: 's3', x: 1, y: 3, w: 1, h: 1, type: 's' },
+    { id: 's4', x: 2, y: 3, w: 1, h: 1, type: 's' },
+  ],
+  // Level 3: Medium (Pennant Puzzle)
+  [
+    { id: 'master', x: 0, y: 0, w: 2, h: 2, type: 'master' },
+    { id: 'v1', x: 2, y: 0, w: 1, h: 2, type: 'v' },
+    { id: 'v2', x: 3, y: 0, w: 1, h: 2, type: 'v' },
+    { id: 'v3', x: 2, y: 2, w: 1, h: 2, type: 'v' },
+    { id: 'v4', x: 3, y: 2, w: 1, h: 2, type: 'v' },
+    { id: 'h1', x: 0, y: 2, w: 2, h: 1, type: 'h' },
+    { id: 'h2', x: 0, y: 3, w: 2, h: 1, type: 'h' },
+    { id: 's1', x: 0, y: 4, w: 1, h: 1, type: 's' },
+    { id: 's2', x: 1, y: 4, w: 1, h: 1, type: 's' },
+  ],
+  // Level 4: Hard (Forget-me-not)
+  [
+    { id: 'v1', x: 0, y: 0, w: 1, h: 2, type: 'v' },
+    { id: 'master', x: 1, y: 0, w: 2, h: 2, type: 'master' },
+    { id: 'v2', x: 3, y: 0, w: 1, h: 2, type: 'v' },
+    { id: 'v3', x: 0, y: 2, w: 1, h: 2, type: 'v' },
+    { id: 'h1', x: 1, y: 2, w: 2, h: 1, type: 'h' },
+    { id: 'v4', x: 3, y: 2, w: 1, h: 2, type: 'v' },
+    { id: 's1', x: 1, y: 3, w: 1, h: 1, type: 's' },
+    { id: 's2', x: 2, y: 3, w: 1, h: 1, type: 's' },
+    { id: 's3', x: 0, y: 4, w: 1, h: 1, type: 's' },
+    { id: 's4', x: 3, y: 4, w: 1, h: 1, type: 's' },
+  ],
+  // Level 5: Expert (Red Donkey)
+  [
+    { id: 'v1', x: 0, y: 0, w: 1, h: 2, type: 'v' },
+    { id: 'master', x: 1, y: 0, w: 2, h: 2, type: 'master' },
+    { id: 'v2', x: 3, y: 0, w: 1, h: 2, type: 'v' },
+    { id: 'v3', x: 0, y: 2, w: 1, h: 2, type: 'v' },
+    { id: 'h1', x: 1, y: 2, w: 2, h: 1, type: 'h' },
+    { id: 'v4', x: 3, y: 2, w: 1, h: 2, type: 'v' },
+    { id: 's1', x: 1, y: 3, w: 1, h: 1, type: 's' },
+    { id: 's2', x: 2, y: 3, w: 1, h: 1, type: 's' },
+    { id: 's3', x: 1, y: 4, w: 1, h: 1, type: 's' },
+    { id: 's4', x: 2, y: 4, w: 1, h: 1, type: 's' },
+  ]
 ];
 
 const BOARD_W = 4;
 const BOARD_H = 5;
 const GAP = 6;
+const BOARD_PADDING = 14;
 
 interface VisualDragState {
   pieceId: string;
@@ -40,8 +88,44 @@ interface VisualDragState {
 }
 
 export default function App() {
-  const [pieces, setPieces] = useState<Piece[]>(INITIAL_PIECES);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('klotski_theme');
+    if (saved) return saved === 'dark';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+  const [currentLevel, setCurrentLevel] = useState(() => {
+    const saved = localStorage.getItem('klotski_level');
+    return saved ? parseInt(saved, 10) : 0;
+  });
+  const [pieces, setPieces] = useState<Piece[]>(LEVELS[currentLevel] || LEVELS[0]);
   const [history, setHistory] = useState<Piece[][]>([]);
+
+  useEffect(() => {
+    localStorage.setItem('klotski_theme', isDarkMode ? 'dark' : 'light');
+    document.body.classList.toggle('dark', isDarkMode);
+  }, [isDarkMode]);
+
+  useEffect(() => {
+    localStorage.setItem('klotski_level', currentLevel.toString());
+  }, [currentLevel]);
+
+  const loadLevel = (levelIndex: number) => {
+    const level = LEVELS[levelIndex] || LEVELS[0];
+    setPieces(level);
+    setHistory([]);
+    setMoves(0);
+    setIsWon(false);
+    setResetCount(c => c + 1);
+    setStagger(true);
+  };
+
+  const handleNextLevel = () => {
+    haptics.trigger('medium');
+    playSelect();
+    const next = Math.min(currentLevel + 1, LEVELS.length - 1);
+    setCurrentLevel(next);
+    loadLevel(next);
+  };
   const [moves, setMoves] = useState(0);
   const [isWon, setIsWon] = useState(false);
   const [resetCount, setResetCount] = useState(0);
@@ -59,9 +143,35 @@ export default function App() {
   
   const haptics = useMemo(() => new WebHaptics(), []);
 
-  const [playSelect] = useSound('/audio/click1.ogg', { volume: 0.4 });
-  const [playMove] = useSound('/audio/switch1.ogg', { volume: 0.5 });
-  const [playWin] = useSound('/audio/switch33.ogg', { volume: 0.6 });
+  const [playSelectRaw] = useSound('/audio/click1.ogg', { volume: 0.15 });
+  const [playMoveRaw] = useSound('/audio/switch1.ogg', { volume: 0.25 });
+  const [playWinRaw] = useSound('/audio/switch33.ogg', { volume: 0.4 });
+
+  const lastSoundTime = useRef<{ select: number; move: number; win: number }>({ select: 0, move: 0, win: 0 });
+
+  const playSelect = () => {
+    const now = Date.now();
+    if (now - lastSoundTime.current.select > 100) {
+      playSelectRaw();
+      lastSoundTime.current.select = now;
+    }
+  };
+
+  const playMove = () => {
+    const now = Date.now();
+    if (now - lastSoundTime.current.move > 120) {
+      playMoveRaw();
+      lastSoundTime.current.move = now;
+    }
+  };
+
+  const playWin = () => {
+    const now = Date.now();
+    if (now - lastSoundTime.current.win > 1000) {
+      playWinRaw();
+      lastSoundTime.current.win = now;
+    }
+  };
 
   useEffect(() => {
     if (stagger) {
@@ -72,14 +182,14 @@ export default function App() {
 
   useEffect(() => {
     const updateSize = () => {
-      const paddingX = 64; // 32px padding on each side
-      const paddingY = 128; // 64px padding top and bottom
+      const paddingX = 80; // 40px padding on each side
+      const paddingY = 160; // 80px padding top and bottom
       const headerHeight = 140; // Approximate header + controls height
       const maxW = Math.min(window.innerWidth - paddingX, 500);
       const maxH = Math.min(window.innerHeight - headerHeight - paddingY, 700);
       
-      const sizeW = (maxW - (BOARD_W + 1) * GAP) / BOARD_W;
-      const sizeH = (maxH - (BOARD_H + 1) * GAP) / BOARD_H;
+      const sizeW = (maxW - (BOARD_W - 1) * GAP - 2 * BOARD_PADDING) / BOARD_W;
+      const sizeH = (maxH - (BOARD_H - 1) * GAP - 2 * BOARD_PADDING) / BOARD_H;
       
       setCellSize(Math.max(35, Math.min(sizeW, sizeH)));
     };
@@ -341,12 +451,7 @@ export default function App() {
   const handleReset = () => {
     haptics.trigger('medium');
     playSelect();
-    setPieces(INITIAL_PIECES);
-    setHistory([]);
-    setMoves(0);
-    setIsWon(false);
-    setResetCount(c => c + 1);
-    setStagger(true);
+    loadLevel(currentLevel);
   };
 
   return (
@@ -364,21 +469,22 @@ export default function App() {
       <div
         className="board-container"
         style={{
-          width: BOARD_W * cellSize + (BOARD_W + 1) * GAP,
-          height: BOARD_H * cellSize + (BOARD_H + 1) * GAP,
+          width: BOARD_W * cellSize + (BOARD_W - 1) * GAP + 2 * BOARD_PADDING,
+          height: BOARD_H * cellSize + (BOARD_H - 1) * GAP + 2 * BOARD_PADDING,
         }}
       >
         <div
           className="board-grid"
           style={{
+            top: BOARD_PADDING, left: BOARD_PADDING, right: BOARD_PADDING, bottom: BOARD_PADDING,
             backgroundSize: `${cellSize + GAP}px ${cellSize + GAP}px`,
-            backgroundPosition: `${GAP}px ${GAP}px`
+            backgroundPosition: `0px 0px`
           }}
         />
         <div
           className="exit-indicator"
           style={{
-            left: GAP + cellSize + GAP,
+            left: BOARD_PADDING + cellSize + GAP,
             width: 2 * cellSize + GAP,
           }}
         />
@@ -387,8 +493,8 @@ export default function App() {
           const isDragging = dragState?.pieceId === piece.id;
           const unit = cellSize + GAP;
 
-          let renderX = piece.x * unit + GAP;
-          let renderY = piece.y * unit + GAP;
+          let renderX = BOARD_PADDING + piece.x * unit;
+          let renderY = BOARD_PADDING + piece.y * unit;
 
           if (isDragging && dragState) {
             renderX += dragState.offsetX;
@@ -436,6 +542,13 @@ export default function App() {
         </button>
       </div>
 
+      <div className="bottom-right-controls">
+        <button className="theme-toggle" onClick={() => setIsDarkMode(!isDarkMode)} aria-label="Toggle dark mode">
+          {isDarkMode ? <Sun size={14} /> : <Moon size={14} />}
+        </button>
+        <div className="level-indicator">#{currentLevel + 1}</div>
+      </div>
+
       <AnimatePresence>
         {isWon && (
           <motion.div 
@@ -462,16 +575,19 @@ export default function App() {
                   <span className="win-stat-val">{moves.toString().padStart(3, '0')}</span>
                   <span className="win-stat-lbl">Moves</span>
                 </div>
-                <div className="win-stat-col">
-                  <span className="win-stat-val">81</span>
-                  <span className="win-stat-lbl">Optimal</span>
-                </div>
               </div>
 
-              <button className="btn" onClick={handleReset} style={{ margin: '0 auto', width: '100%', justifyContent: 'center' }}>
-                <RotateCcw size={18} />
-                Play Again
-              </button>
+              {currentLevel < LEVELS.length - 1 ? (
+                <button className="btn" onClick={handleNextLevel} style={{ margin: '0 auto', width: '100%', justifyContent: 'center' }}>
+                  <Check size={18} />
+                  Next Level
+                </button>
+              ) : (
+                <button className="btn" onClick={handleReset} style={{ margin: '0 auto', width: '100%', justifyContent: 'center' }}>
+                  <RotateCcw size={18} />
+                  Play Again
+                </button>
+              )}
             </motion.div>
           </motion.div>
         )}
