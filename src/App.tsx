@@ -154,34 +154,34 @@ export default function App() {
 
     const currentPointerX = e.clientX;
     const currentPointerY = e.clientY;
-    const dx = currentPointerX - dragState.pointerX;
-    const dy = currentPointerY - dragState.pointerY;
+    let { pointerX, pointerY, axis } = dragState;
+
+    let dx = currentPointerX - pointerX;
+    let dy = currentPointerY - pointerY;
 
     const unit = cellSize + GAP;
-    const threshold = unit * 0.6; // 60% of a cell to commit mid-drag
+    const threshold = unit * 0.55;
 
     let moved = false;
     let newPieces = pieces;
-    let newPointerX = dragState.pointerX;
-    let newPointerY = dragState.pointerY;
-
     const piece = pieces.find(p => p.id === dragState.pieceId)!;
 
-    // Check for mid-drag logical commit
-    if (Math.abs(dx) > threshold && Math.abs(dx) > Math.abs(dy)) {
+    if (axis === 'x' && Math.abs(dx) > threshold) {
       const dir = Math.sign(dx);
       const bounds = getBounds(piece, 'x', pieces);
       if ((dir > 0 && bounds.maxDelta >= 1) || (dir < 0 && bounds.minDelta <= -1)) {
         newPieces = pieces.map(p => p.id === piece.id ? { ...p, x: p.x + dir } : p);
-        newPointerX += dir * unit;
+        pointerX += dir * unit;
+        dx = currentPointerX - pointerX;
         moved = true;
       }
-    } else if (Math.abs(dy) > threshold && Math.abs(dy) > Math.abs(dx)) {
+    } else if (axis === 'y' && Math.abs(dy) > threshold) {
       const dir = Math.sign(dy);
       const bounds = getBounds(piece, 'y', pieces);
       if ((dir > 0 && bounds.maxDelta >= 1) || (dir < 0 && bounds.minDelta <= -1)) {
         newPieces = pieces.map(p => p.id === piece.id ? { ...p, y: p.y + dir } : p);
-        newPointerY += dir * unit;
+        pointerY += dir * unit;
+        dy = currentPointerY - pointerY;
         moved = true;
       }
     }
@@ -189,60 +189,50 @@ export default function App() {
     if (moved) {
       setPieces(newPieces);
       haptics.trigger('light');
-      
-      setDragState({
-        ...dragState,
-        pointerX: newPointerX,
-        pointerY: newPointerY,
-        currentPointerX,
-        currentPointerY,
-        offsetPx: 0,
-        axis: null,
-        hasMoved: true
-      });
-
       const master = newPieces.find(p => p.id === 'master')!;
       if (master.x === 1 && master.y === 3) {
         setIsWon(true);
         haptics.trigger('success');
         setDragState(null);
+        return;
       }
-      return;
     }
 
-    // Visual drag update
-    const boundsX = getBounds(piece, 'x', pieces);
-    const boundsY = getBounds(piece, 'y', pieces);
-
-    let activeAxis = dragState.axis;
-    const lockThreshold = 8;
-
-    if (!activeAxis) {
-      if (Math.abs(dx) > lockThreshold && Math.abs(dx) > Math.abs(dy)) activeAxis = 'x';
-      else if (Math.abs(dy) > lockThreshold && Math.abs(dy) > Math.abs(dx)) activeAxis = 'y';
+    if (!axis) {
+      if (Math.abs(dx) > 5 && Math.abs(dx) > Math.abs(dy)) axis = 'x';
+      else if (Math.abs(dy) > 5 && Math.abs(dy) > Math.abs(dx)) axis = 'y';
     } else {
-      if (activeAxis === 'x' && Math.abs(dx) < 15 && Math.abs(dy) > 15) activeAxis = 'y';
-      if (activeAxis === 'y' && Math.abs(dy) < 15 && Math.abs(dx) > 15) activeAxis = 'x';
+      if (axis === 'x' && Math.abs(dx) < 10 && Math.abs(dy) > 10) {
+        axis = 'y';
+        pointerX = currentPointerX;
+        dx = 0;
+      } else if (axis === 'y' && Math.abs(dy) < 10 && Math.abs(dx) > 10) {
+        axis = 'x';
+        pointerY = currentPointerY;
+        dy = 0;
+      }
     }
 
     let offsetPx = 0;
-    if (activeAxis === 'x') {
-      const minPx = boundsX.minDelta * unit;
-      const maxPx = boundsX.maxDelta * unit;
-      let rawOffset = dx;
-      if (rawOffset < minPx) offsetPx = minPx + (rawOffset - minPx) * 0.15;
-      else if (rawOffset > maxPx) offsetPx = maxPx + (rawOffset - maxPx) * 0.15;
-      else offsetPx = rawOffset;
-    } else if (activeAxis === 'y') {
-      const minPx = boundsY.minDelta * unit;
-      const maxPx = boundsY.maxDelta * unit;
-      let rawOffset = dy;
-      if (rawOffset < minPx) offsetPx = minPx + (rawOffset - minPx) * 0.15;
-      else if (rawOffset > maxPx) offsetPx = maxPx + (rawOffset - maxPx) * 0.15;
-      else offsetPx = rawOffset;
+    if (axis) {
+      const currentPiece = newPieces.find(p => p.id === dragState.pieceId)!;
+      const bounds = getBounds(currentPiece, axis, newPieces);
+      const minPx = bounds.minDelta * unit;
+      const maxPx = bounds.maxDelta * unit;
+      let rawOffset = axis === 'x' ? dx : dy;
+      offsetPx = Math.max(minPx, Math.min(maxPx, rawOffset));
     }
 
-    setDragState(prev => prev ? { ...prev, currentPointerX, currentPointerY, axis: activeAxis, offsetPx } : null);
+    setDragState(prev => prev ? { 
+      ...prev, 
+      pointerX, 
+      pointerY, 
+      currentPointerX, 
+      currentPointerY, 
+      axis, 
+      offsetPx,
+      hasMoved: prev.hasMoved || moved 
+    } : null);
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
@@ -318,7 +308,6 @@ export default function App() {
     <div className="app-container">
       <div className="header">
         <div className="title-group">
-          <span className="title-badge">Classic</span>
           <h1 className="title">Klotski</h1>
         </div>
         <div className="stats">
@@ -359,13 +348,8 @@ export default function App() {
           if (isDragging && dragState) {
             if (dragState.axis === 'x') {
               renderX += dragState.offsetPx;
-              renderY += (dragState.currentPointerY - dragState.pointerY) * 0.03;
             } else if (dragState.axis === 'y') {
               renderY += dragState.offsetPx;
-              renderX += (dragState.currentPointerX - dragState.pointerX) * 0.03;
-            } else {
-              renderX += (dragState.currentPointerX - dragState.pointerX) * 0.15;
-              renderY += (dragState.currentPointerY - dragState.pointerY) * 0.15;
             }
           }
 
