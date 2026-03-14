@@ -198,6 +198,9 @@ body {
   user-select: none;
   cursor: grab;
   transition: box-shadow 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.3s ease;
+  touch-action: none;
+  will-change: transform;
+  contain: layout style paint;
 }
 
 .piece::before {
@@ -220,6 +223,12 @@ body {
     0 12px 24px rgba(0,0,0,0.1), 
     inset 0 2px 4px rgba(255,255,255,1);
   filter: brightness(1.05);
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .piece.dragging {
+    box-shadow: 0 16px 32px rgba(0,0,0,0.15);
+  }
 }
 
 .piece.master {
