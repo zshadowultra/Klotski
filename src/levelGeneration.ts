@@ -23,8 +23,12 @@ export function computeSolverMetrics(startPieces: Piece[]) {
   ];
   visited.add(canonical(startPieces));
 
+  const MAX_STATES = 2000;
+  let statesProcessed = 0;
   let shortestPathLength = Infinity;
-  while (queue.length > 0) {
+
+  while (queue.length > 0 && statesProcessed < MAX_STATES) {
+    statesProcessed++;
     const item = queue.shift();
     if (!item) continue;
     const { pieces, path } = item;

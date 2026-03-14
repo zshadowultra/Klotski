@@ -390,9 +390,8 @@ export default function App() {
     return saved ? parseInt(saved, 10) : 0;
   });
 
-  const [levelPieces, setLevelPieces] = useState<Piece[]>(() =>
-    produceSolvableLevel({ difficulty })
-  );
+  const [levelPieces, setLevelPieces] = useState<Piece[]>([]);
+  const [isGenerating, setIsGenerating] = useState(true);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -421,6 +420,12 @@ export default function App() {
 
   const boardEngine = useBoardEngine(levelPieces);
   const { pieces, moves, isWon, undo, reset, solverData } = boardEngine;
+
+  useEffect(() => {
+    if (levelPieces.length > 0) {
+      reset(levelPieces);
+    }
+  }, [levelPieces, reset]);
 
   const [cellSize, setCellSize] = useState(70);
   useEffect(() => {
@@ -493,14 +498,25 @@ export default function App() {
   const loadLevel = useCallback(
     (nextIndex: number, difficultyOverride?: Difficulty) => {
       const diff = difficultyOverride || difficulty;
-      const nextPieces = produceSolvableLevel({ difficulty: diff });
-      setLevelPieces(nextPieces);
-      reset(nextPieces);
-      setCurrentLevelIndex(nextIndex);
-      setStagger(true);
+      setIsGenerating(true);
+      
+      // Use setTimeout to allow the UI to show the loading state
+      setTimeout(() => {
+        const nextPieces = produceSolvableLevel({ difficulty: diff });
+        setLevelPieces(nextPieces);
+        reset(nextPieces);
+        setCurrentLevelIndex(nextIndex);
+        setStagger(true);
+        setIsGenerating(false);
+      }, 100);
     },
     [difficulty, reset]
   );
+
+  // Initial level load
+  useEffect(() => {
+    loadLevel(currentLevelIndex);
+  }, []); // Only on mount
 
   const handleNextLevel = useCallback(() => {
     haptics.trigger('medium');
@@ -553,6 +569,12 @@ export default function App() {
           height: BOARD_H * cellSize + (BOARD_H - 1) * GAP + 2 * BOARD_PADDING,
         }}
       >
+        {isGenerating && (
+          <div className="loading-overlay">
+            <div className="loading-spinner" />
+            <div className="loading-text">Generating Level...</div>
+          </div>
+        )}
         <div
           className="board-grid"
           style={{
