@@ -67,10 +67,11 @@ export default function App() {
 
   useEffect(() => {
     const updateSize = () => {
-      const padding = 48; // 24px padding on each side
+      const paddingX = 64; // 32px padding on each side
+      const paddingY = 128; // 64px padding top and bottom
       const headerHeight = 140; // Approximate header + controls height
-      const maxW = Math.min(window.innerWidth - padding, 500);
-      const maxH = Math.min(window.innerHeight - headerHeight - padding, 700);
+      const maxW = Math.min(window.innerWidth - paddingX, 500);
+      const maxH = Math.min(window.innerHeight - headerHeight - paddingY, 700);
       
       const sizeW = (maxW - (BOARD_W + 1) * GAP) / BOARD_W;
       const sizeH = (maxH - (BOARD_H + 1) * GAP) / BOARD_H;
@@ -360,7 +361,7 @@ export default function App() {
               initial={{ opacity: 0, scale: 0.8, y: renderY + 20, x: renderX }}
               animate={{ 
                 opacity: 1, 
-                scale: isDragging ? 1.04 : 1, 
+                scale: 1, 
                 x: renderX, 
                 y: renderY,
                 zIndex: isDragging ? 20 : 1
