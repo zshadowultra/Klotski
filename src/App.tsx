@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback, memo } from 'react';
 import { RotateCcw, Undo2, Check, Moon, Sun } from 'lucide-react';
-import { WebHaptics } from 'web-haptics';
-import { motion, AnimatePresence, motionValue } from 'motion/react';
-import useSound from 'use-sound';
+import { motion, AnimatePresence, motionValue } from 'framer-motion';
 import { produceSolvableLevel, Difficulty, computeSolverMetrics } from './levelGeneration';
 
 export type PieceType = 'master' | 'v' | 'h' | 's';
@@ -469,10 +467,14 @@ export default function App() {
     }
   }, [stagger]);
 
-  const haptics = useMemo(() => new WebHaptics(), []);
-  const [playSelectRaw] = useSound('/audio/click1.ogg', { volume: 0.15 });
-  const [playMoveRaw] = useSound('/audio/switch1.ogg', { volume: 0.25 });
-  const [playWinRaw] = useSound('/audio/switch33.ogg', { volume: 0.4 });
+  // const haptics = useMemo(() => new WebHaptics(), []);
+  const haptics = useMemo(() => ({ trigger: () => {} }), []);
+  // const [playSelectRaw] = useSound('/audio/click1.ogg', { volume: 0.15 });
+  // const [playMoveRaw] = useSound('/audio/switch1.ogg', { volume: 0.25 });
+  // const [playWinRaw] = useSound('/audio/switch33.ogg', { volume: 0.4 });
+  const playSelectRaw = () => {};
+  const playMoveRaw = () => {};
+  const playWinRaw = () => {};
 
   const lastSoundTime = useRef({ select: 0, move: 0, win: 0 });
   const playSelect = useCallback(() => {
@@ -544,8 +546,10 @@ export default function App() {
     [currentLevelIndex, loadLevel]
   );
 
+  console.log('App component rendering');
   return (
     <div className="app-container">
+      <h1>Test</h1>
       <div className="header">
         <div className="title-group">
           <h1 className="title">Klotski</h1>
