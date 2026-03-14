@@ -132,14 +132,15 @@ function useDragController(
 
   const motionValues = useMemo(() => {
     const map: Record<string, { x: any; y: any }> = {};
+    const unit = cellSize + GAP;
     pieces.forEach(p => {
       map[p.id] = {
-        x: motionValue(0),
-        y: motionValue(0),
+        x: motionValue(p.x * unit),
+        y: motionValue(p.y * unit),
       };
     });
     return map;
-  }, [pieces.map(p => p.id).join(':')]);
+  }, [pieces.map(p => p.id).join(':'), cellSize]);
 
   useEffect(() => {
     const unit = cellSize + GAP;
@@ -339,12 +340,10 @@ const PieceComponent = memo(function PieceComponent({
   return (
     <motion.div
       className={`piece ${piece.type} ${isDragging ? 'dragging' : ''} ${piece.id === 'master' ? 'master' : ''}`}
-      initial={{ opacity: 0, scale: 0.85, x: piece.x * unit, y: piece.y * unit }}
+      initial={{ opacity: 0, scale: 0.85 }}
       animate={{
         opacity: 1,
         scale: 1,
-        x: mv.x.get(),
-        y: mv.y.get(),
         zIndex: isDragging ? 20 : 1,
       }}
       transition={

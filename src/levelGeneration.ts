@@ -28,8 +28,8 @@ export function computeSolverMetrics(startPieces: Piece[]) {
     const item = queue.shift();
     if (!item) continue;
     const { pieces, path } = item;
-    const key = canonical(pieces);
-    if (key === SOLVED_KEY) {
+    const master = pieces.find(p => p.id === 'master');
+    if (master && master.x === 1 && master.y === EXIT_ROW) {
       shortestPathLength = path.length;
       return { solvable: true, shortestPathLength };
     }
