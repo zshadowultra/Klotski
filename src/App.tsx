@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { RotateCcw, Undo2, Check } from 'lucide-react';
 import { WebHaptics } from 'web-haptics';
 import { motion, AnimatePresence } from 'motion/react';
+import useSound from 'use-sound';
 
 type PieceType = 'master' | 'v' | 'h' | 's';
 
@@ -32,18 +33,10 @@ const BOARD_W = 4;
 const BOARD_H = 5;
 const GAP = 6;
 
-interface DragState {
+interface VisualDragState {
   pieceId: string;
-  startX: number;
-  startY: number;
-  pointerX: number;
-  pointerY: number;
-  currentPointerX: number;
-  currentPointerY: number;
-  axis: 'x' | 'y' | null;
-  offsetPx: number;
-  initialPieces: Piece[];
-  hasMoved: boolean;
+  offsetX: number;
+  offsetY: number;
 }
 
 export default function App() {
@@ -53,10 +46,22 @@ export default function App() {
   const [isWon, setIsWon] = useState(false);
   const [resetCount, setResetCount] = useState(0);
   const [cellSize, setCellSize] = useState(70);
-  const [dragState, setDragState] = useState<DragState | null>(null);
+  const [dragState, setDragState] = useState<VisualDragState | null>(null);
+  const dragRef = useRef<{
+    pieceId: string;
+    pointerX: number;
+    pointerY: number;
+    pieces: Piece[];
+    initialPieces: Piece[];
+    hasMoved: boolean;
+  } | null>(null);
   const [stagger, setStagger] = useState(true);
   
   const haptics = useMemo(() => new WebHaptics(), []);
+
+  const [playSelect] = useSound('/audio/click1.ogg', { volume: 0.4 });
+  const [playMove] = useSound('/audio/switch1.ogg', { volume: 0.5 });
+  const [playWin] = useSound('/audio/switch33.ogg', { volume: 0.6 });
 
   useEffect(() => {
     if (stagger) {
@@ -135,27 +140,31 @@ export default function App() {
     if (isWon) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     haptics.trigger('selection');
-    setDragState({
+    playSelect();
+    
+    dragRef.current = {
       pieceId: piece.id,
-      startX: piece.x,
-      startY: piece.y,
       pointerX: e.clientX,
       pointerY: e.clientY,
-      currentPointerX: e.clientX,
-      currentPointerY: e.clientY,
-      axis: null,
-      offsetPx: 0,
+      pieces: pieces,
       initialPieces: pieces,
       hasMoved: false
+    };
+
+    setDragState({
+      pieceId: piece.id,
+      offsetX: 0,
+      offsetY: 0
     });
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!dragState) return;
+    if (!dragRef.current) return;
 
+    const state = dragRef.current;
     const currentPointerX = e.clientX;
     const currentPointerY = e.clientY;
-    let { pointerX, pointerY, axis } = dragState;
+    let { pointerX, pointerY, pieces: currentPieces } = state;
 
     let dx = currentPointerX - pointerX;
     let dy = currentPointerY - pointerY;
@@ -164,131 +173,165 @@ export default function App() {
     const threshold = unit * 0.55;
 
     let moved = false;
-    let newPieces = pieces;
-    const piece = pieces.find(p => p.id === dragState.pieceId)!;
+    let newPieces = currentPieces;
+    let piece = newPieces.find(p => p.id === state.pieceId)!;
 
-    if (axis === 'x' && Math.abs(dx) > threshold) {
-      const dir = Math.sign(dx);
-      const bounds = getBounds(piece, 'x', pieces);
-      if ((dir > 0 && bounds.maxDelta >= 1) || (dir < 0 && bounds.minDelta <= -1)) {
-        newPieces = pieces.map(p => p.id === piece.id ? { ...p, x: p.x + dir } : p);
-        pointerX += dir * unit;
-        dx = currentPointerX - pointerX;
-        moved = true;
-      }
-    } else if (axis === 'y' && Math.abs(dy) > threshold) {
-      const dir = Math.sign(dy);
-      const bounds = getBounds(piece, 'y', pieces);
-      if ((dir > 0 && bounds.maxDelta >= 1) || (dir < 0 && bounds.minDelta <= -1)) {
-        newPieces = pieces.map(p => p.id === piece.id ? { ...p, y: p.y + dir } : p);
-        pointerY += dir * unit;
-        dy = currentPointerY - pointerY;
-        moved = true;
+    let keepChecking = true;
+    while (keepChecking) {
+      keepChecking = false;
+      
+      const absDx = Math.abs(dx);
+      const absDy = Math.abs(dy);
+      
+      if (absDx > threshold || absDy > threshold) {
+        if (absDx >= absDy) {
+          const dir = Math.sign(dx);
+          const bounds = getBounds(piece, 'x', newPieces);
+          if ((dir > 0 && bounds.maxDelta >= 1) || (dir < 0 && bounds.minDelta <= -1)) {
+            newPieces = newPieces.map(p => p.id === piece.id ? { ...p, x: p.x + dir } : p);
+            piece = newPieces.find(p => p.id === state.pieceId)!;
+            pointerX += dir * unit;
+            dx = currentPointerX - pointerX;
+            moved = true;
+            keepChecking = true;
+          } else if (absDy > threshold) {
+            const dirY = Math.sign(dy);
+            const boundsY = getBounds(piece, 'y', newPieces);
+            if ((dirY > 0 && boundsY.maxDelta >= 1) || (dirY < 0 && boundsY.minDelta <= -1)) {
+              newPieces = newPieces.map(p => p.id === piece.id ? { ...p, y: p.y + dirY } : p);
+              piece = newPieces.find(p => p.id === state.pieceId)!;
+              pointerY += dirY * unit;
+              dy = currentPointerY - pointerY;
+              moved = true;
+              keepChecking = true;
+            }
+          }
+        } else {
+          const dir = Math.sign(dy);
+          const bounds = getBounds(piece, 'y', newPieces);
+          if ((dir > 0 && bounds.maxDelta >= 1) || (dir < 0 && bounds.minDelta <= -1)) {
+            newPieces = newPieces.map(p => p.id === piece.id ? { ...p, y: p.y + dir } : p);
+            piece = newPieces.find(p => p.id === state.pieceId)!;
+            pointerY += dir * unit;
+            dy = currentPointerY - pointerY;
+            moved = true;
+            keepChecking = true;
+          } else if (absDx > threshold) {
+            const dirX = Math.sign(dx);
+            const boundsX = getBounds(piece, 'x', newPieces);
+            if ((dirX > 0 && boundsX.maxDelta >= 1) || (dirX < 0 && boundsX.minDelta <= -1)) {
+              newPieces = newPieces.map(p => p.id === piece.id ? { ...p, x: p.x + dirX } : p);
+              piece = newPieces.find(p => p.id === state.pieceId)!;
+              pointerX += dirX * unit;
+              dx = currentPointerX - pointerX;
+              moved = true;
+              keepChecking = true;
+            }
+          }
+        }
       }
     }
+
+    const boundsX = getBounds(piece, 'x', newPieces);
+    const boundsY = getBounds(piece, 'y', newPieces);
+    const minPx = boundsX.minDelta * unit;
+    const maxPx = boundsX.maxDelta * unit;
+    const minPy = boundsY.minDelta * unit;
+    const maxPy = boundsY.maxDelta * unit;
+    
+    const offsetX = Math.max(minPx, Math.min(maxPx, dx));
+    const offsetY = Math.max(minPy, Math.min(maxPy, dy));
+
+    state.pointerX = pointerX;
+    state.pointerY = pointerY;
+    state.pieces = newPieces;
+    if (moved) state.hasMoved = true;
 
     if (moved) {
       setPieces(newPieces);
       haptics.trigger('light');
+      playMove();
       const master = newPieces.find(p => p.id === 'master')!;
       if (master.x === 1 && master.y === 3) {
         setIsWon(true);
         haptics.trigger('success');
+        playWin();
+        dragRef.current = null;
         setDragState(null);
         return;
       }
     }
 
-    if (!axis) {
-      if (Math.abs(dx) > 5 && Math.abs(dx) > Math.abs(dy)) axis = 'x';
-      else if (Math.abs(dy) > 5 && Math.abs(dy) > Math.abs(dx)) axis = 'y';
-    } else {
-      if (axis === 'x' && Math.abs(dx) < 10 && Math.abs(dy) > 10) {
-        axis = 'y';
-        pointerX = currentPointerX;
-        dx = 0;
-      } else if (axis === 'y' && Math.abs(dy) < 10 && Math.abs(dx) > 10) {
-        axis = 'x';
-        pointerY = currentPointerY;
-        dy = 0;
-      }
-    }
-
-    let offsetPx = 0;
-    if (axis) {
-      const currentPiece = newPieces.find(p => p.id === dragState.pieceId)!;
-      const bounds = getBounds(currentPiece, axis, newPieces);
-      const minPx = bounds.minDelta * unit;
-      const maxPx = bounds.maxDelta * unit;
-      let rawOffset = axis === 'x' ? dx : dy;
-      offsetPx = Math.max(minPx, Math.min(maxPx, rawOffset));
-    }
-
-    setDragState(prev => prev ? { 
-      ...prev, 
-      pointerX, 
-      pointerY, 
-      currentPointerX, 
-      currentPointerY, 
-      axis, 
-      offsetPx,
-      hasMoved: prev.hasMoved || moved 
-    } : null);
+    setDragState({
+      pieceId: state.pieceId,
+      offsetX,
+      offsetY
+    });
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
-    if (!dragState) return;
+    if (!dragRef.current) return;
     e.currentTarget.releasePointerCapture(e.pointerId);
 
-    let finalPieces = pieces;
+    const state = dragRef.current;
+    let finalPieces = state.pieces;
     let didMoveNow = false;
 
-    if (dragState.axis) {
-      const unit = cellSize + GAP;
-      const piece = pieces.find(p => p.id === dragState.pieceId)!;
-      const bounds = getBounds(piece, dragState.axis, pieces);
-      const minPx = bounds.minDelta * unit;
-      const maxPx = bounds.maxDelta * unit;
-      
-      const clampedOffset = Math.max(minPx, Math.min(maxPx, dragState.offsetPx));
-      const logicalDelta = Math.round(clampedOffset / unit);
+    const unit = cellSize + GAP;
+    const piece = finalPieces.find(p => p.id === state.pieceId)!;
+    const boundsX = getBounds(piece, 'x', finalPieces);
+    const boundsY = getBounds(piece, 'y', finalPieces);
+    
+    const minPx = boundsX.minDelta * unit;
+    const maxPx = boundsX.maxDelta * unit;
+    const minPy = boundsY.minDelta * unit;
+    const maxPy = boundsY.maxDelta * unit;
+    
+    const clampedOffsetX = Math.max(minPx, Math.min(maxPx, dragState?.offsetX || 0));
+    const clampedOffsetY = Math.max(minPy, Math.min(maxPy, dragState?.offsetY || 0));
+    
+    const logicalDeltaX = Math.round(clampedOffsetX / unit);
+    const logicalDeltaY = Math.round(clampedOffsetY / unit);
 
-      if (logicalDelta !== 0) {
-        finalPieces = pieces.map(p => {
-          if (p.id === dragState.pieceId) {
-            return {
-              ...p,
-              x: p.x + (dragState.axis === 'x' ? logicalDelta : 0),
-              y: p.y + (dragState.axis === 'y' ? logicalDelta : 0)
-            };
-          }
-          return p;
-        });
-        setPieces(finalPieces);
-        didMoveNow = true;
-        haptics.trigger('light');
-      }
+    if (logicalDeltaX !== 0 || logicalDeltaY !== 0) {
+      finalPieces = finalPieces.map(p => {
+        if (p.id === state.pieceId) {
+          return {
+            ...p,
+            x: p.x + logicalDeltaX,
+            y: p.y + logicalDeltaY
+          };
+        }
+        return p;
+      });
+      setPieces(finalPieces);
+      didMoveNow = true;
+      haptics.trigger('light');
+      playMove();
     }
 
-    if (dragState.hasMoved || didMoveNow) {
-      setHistory(prev => [...prev, dragState.initialPieces]);
+    if (state.hasMoved || didMoveNow) {
+      setHistory(prev => [...prev, state.initialPieces]);
       setMoves(m => m + 1);
       
       const master = finalPieces.find(p => p.id === 'master')!;
       if (master.x === 1 && master.y === 3) {
         setIsWon(true);
         haptics.trigger('success');
+        playWin();
       }
     } else {
       haptics.trigger('soft');
     }
     
+    dragRef.current = null;
     setDragState(null);
   };
 
   const handleUndo = () => {
     if (history.length === 0 || isWon) return;
     haptics.trigger('light');
+    playSelect();
     const prev = history[history.length - 1];
     setPieces(prev);
     setHistory(h => h.slice(0, -1));
@@ -297,6 +340,7 @@ export default function App() {
 
   const handleReset = () => {
     haptics.trigger('medium');
+    playSelect();
     setPieces(INITIAL_PIECES);
     setHistory([]);
     setMoves(0);
@@ -347,11 +391,8 @@ export default function App() {
           let renderY = piece.y * unit + GAP;
 
           if (isDragging && dragState) {
-            if (dragState.axis === 'x') {
-              renderX += dragState.offsetPx;
-            } else if (dragState.axis === 'y') {
-              renderY += dragState.offsetPx;
-            }
+            renderX += dragState.offsetX;
+            renderY += dragState.offsetY;
           }
 
           return (
