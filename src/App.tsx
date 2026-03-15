@@ -78,12 +78,15 @@ const PieceComponent = ({
         y,
         width: piece.w * cellSize + (piece.w - 1) * GAP,
         height: piece.h * cellSize + (piece.h - 1) * GAP,
-        touchAction: 'none'
+        touchAction: 'none',
+        userSelect: 'none'
       }}
       onPointerDown={(e) => onPointerDown(e, piece)}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
+      onContextMenu={(e) => e.preventDefault()}
+      onDragStart={(e) => e.preventDefault()}
     >
       <div className="piece-inner" />
     </motion.div>
@@ -599,7 +602,9 @@ export default function App() {
         style={{
           width: BOARD_W * cellSize + (BOARD_W - 1) * GAP + 2 * BOARD_PADDING,
           height: BOARD_H * cellSize + (BOARD_H - 1) * GAP + 2 * BOARD_PADDING,
+          touchAction: 'none'
         }}
+        onContextMenu={(e) => e.preventDefault()}
       >
         <div
           className="board-grid"
