@@ -709,15 +709,29 @@ export default function App() {
               </div>
 
               {currentLevel < LEVELS.length - 1 ? (
-                <button className="btn" onClick={handleNextLevel} style={{ margin: '0 auto', width: '100%', justifyContent: 'center' }}>
+                <motion.button 
+                  className="btn" 
+                  onClick={handleNextLevel} 
+                  style={{ margin: '0 auto', width: '100%', justifyContent: 'center' }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3, type: 'spring', stiffness: 300, damping: 20 }}
+                >
                   <Check size={18} />
                   Next Level
-                </button>
+                </motion.button>
               ) : (
-                <button className="btn" onClick={handleReset} style={{ margin: '0 auto', width: '100%', justifyContent: 'center' }}>
+                <motion.button 
+                  className="btn" 
+                  onClick={handleReset} 
+                  style={{ margin: '0 auto', width: '100%', justifyContent: 'center' }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3, type: 'spring', stiffness: 300, damping: 20 }}
+                >
                   <RotateCcw size={18} />
                   Play Again
-                </button>
+                </motion.button>
               )}
             </motion.div>
           </motion.div>
