@@ -1,9 +1,8 @@
-import { Howler } from 'howler';
+import { playSound } from './soundManager';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { RotateCcw, Undo2, Check, Moon, Sun, ChevronLeft, ChevronRight } from 'lucide-react';
 import { WebHaptics } from 'web-haptics';
 import { motion, AnimatePresence, useMotionValue, useSpring } from 'motion/react';
-import useSound from 'use-sound';
 import { Piece } from './types';
 import { LEVELS } from './levels';
 
@@ -195,32 +194,28 @@ export default function App() {
   
   const haptics = useMemo(() => new WebHaptics(), []);
 
-  const [playSelectRaw] = useSound('/audio/click1.ogg', { volume: 0.15 });
-  const [playMoveRaw] = useSound('/audio/switch1.ogg', { volume: 0.25 });
-  const [playWinRaw] = useSound('/audio/switch33.ogg', { volume: 0.4 });
-
   const lastSoundTime = useRef<{ select: number; move: number; win: number }>({ select: 0, move: 0, win: 0 });
 
-  const playSelect = () => {
+  const playSelect = async () => {
     const now = Date.now();
     if (now - lastSoundTime.current.select > 100) {
-      playSelectRaw();
+      await playSound('select');
       lastSoundTime.current.select = now;
     }
   };
 
-  const playMove = () => {
+  const playMove = async () => {
     const now = Date.now();
     if (now - lastSoundTime.current.move > 120) {
-      playMoveRaw();
+      await playSound('move');
       lastSoundTime.current.move = now;
     }
   };
 
-  const playWin = () => {
+  const playWin = async () => {
     const now = Date.now();
     if (now - lastSoundTime.current.win > 1000) {
-      playWinRaw();
+      await playSound('win');
       lastSoundTime.current.win = now;
     }
   };
@@ -302,11 +297,10 @@ export default function App() {
   };
 
   useEffect(() => {
-    Howler.autoSuspend = false;
+    // Howler is now managed in soundManager.ts
   }, []);
 
   const handlePointerDown = (e: React.PointerEvent, piece: Piece) => {
-    Howler.ctx.resume();
     if (isWon || dragRef.current || e.button !== 0) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     haptics.trigger('selection');
