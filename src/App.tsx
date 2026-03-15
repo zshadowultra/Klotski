@@ -207,11 +207,24 @@ export default function App() {
     }
   };
 
-  const playMove = async () => {
+  const playMove = async (count = 1) => {
     const now = Date.now();
-    if (now - lastSoundTime.current.move > 120) {
-      await playSound('move');
-      lastSoundTime.current.move = now;
+    
+    if (count === 1) {
+      // Standard single-step throttle
+      if (now - lastSoundTime.current.move > 60) {
+        playSound('move', 0.15);
+        lastSoundTime.current.move = now;
+      }
+    } else {
+      // For multi-step moves (fast drags), play a sequence of sounds
+      for (let i = 0; i < count; i++) {
+        setTimeout(() => {
+          playSound('move', 0.12);
+        }, i * 50);
+      }
+      // Set throttle to end of the sequence
+      lastSoundTime.current.move = now + (count * 50);
     }
   };
 
@@ -359,7 +372,7 @@ export default function App() {
     const unit = cellSize + GAP;
     const threshold = unit * 0.55;
 
-    let moved = false;
+    let stepsCount = 0;
     let newPieces = currentPieces;
     let piece = newPieces.find(p => p.id === state.pieceId)!;
 
@@ -379,7 +392,7 @@ export default function App() {
             piece = newPieces.find(p => p.id === state.pieceId)!;
             pointerX += dir * unit;
             dx = currentPointerX - pointerX;
-            moved = true;
+            stepsCount++;
             keepChecking = true;
           } else if (absDy > threshold) {
             const dirY = Math.sign(dy);
@@ -389,7 +402,7 @@ export default function App() {
               piece = newPieces.find(p => p.id === state.pieceId)!;
               pointerY += dirY * unit;
               dy = currentPointerY - pointerY;
-              moved = true;
+              stepsCount++;
               keepChecking = true;
             }
           }
@@ -401,7 +414,7 @@ export default function App() {
             piece = newPieces.find(p => p.id === state.pieceId)!;
             pointerY += dir * unit;
             dy = currentPointerY - pointerY;
-            moved = true;
+            stepsCount++;
             keepChecking = true;
           } else if (absDx > threshold) {
             const dirX = Math.sign(dx);
@@ -411,7 +424,7 @@ export default function App() {
               piece = newPieces.find(p => p.id === state.pieceId)!;
               pointerX += dirX * unit;
               dx = currentPointerX - pointerX;
-              moved = true;
+              stepsCount++;
               keepChecking = true;
             }
           }
@@ -453,13 +466,13 @@ export default function App() {
     state.pieces = newPieces;
     state.offsetX = offsetX;
     state.offsetY = offsetY;
-    if (moved) state.hasMoved = true;
+    if (stepsCount > 0) state.hasMoved = true;
 
-    if (moved) {
+    if (stepsCount > 0) {
       setPieces(newPieces);
       piecesRef.current = newPieces;
       haptics.trigger('light');
-      playMove();
+      playMove(stepsCount);
       const master = newPieces.find(p => p.id === 'master')!;
       if (master.x === 1 && master.y === 3) {
         setIsWon(true);
