@@ -301,6 +301,10 @@ export default function App() {
     return { minDelta, maxDelta };
   };
 
+  useEffect(() => {
+    Howler.autoSuspend = false;
+  }, []);
+
   const handlePointerDown = (e: React.PointerEvent, piece: Piece) => {
     Howler.ctx.resume();
     if (isWon || dragRef.current || e.button !== 0) return;
