@@ -1,7 +1,8 @@
+import { Howler } from 'howler';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { RotateCcw, Undo2, Check, Moon, Sun, ChevronLeft, ChevronRight } from 'lucide-react';
 import { WebHaptics } from 'web-haptics';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useMotionValue, useSpring } from 'motion/react';
 import useSound from 'use-sound';
 import { Piece } from './types';
 import { LEVELS } from './levels';
@@ -17,6 +18,79 @@ interface VisualDragState {
   offsetY: number;
 }
 
+
+const PieceComponent = ({
+  piece,
+  isDragging,
+  cellSize,
+  GAP,
+  BOARD_PADDING,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  staggerIndex,
+  stagger,
+  resetCount,
+  pieceMotionValues
+}: any) => {
+  const unit = cellSize + GAP;
+  const baseRenderX = BOARD_PADDING + piece.x * unit;
+  const baseRenderY = BOARD_PADDING + piece.y * unit;
+
+  const xValue = useMotionValue(baseRenderX);
+  const yValue = useMotionValue(baseRenderY);
+
+  const springConfig = useMemo(() => ({
+    stiffness: 400,
+    damping: 30,
+    mass: 0.5
+  }), []);
+
+  const x = useSpring(xValue, springConfig);
+  const y = useSpring(yValue, springConfig);
+
+  useEffect(() => {
+    pieceMotionValues.current.set(piece.id, { x: xValue, y: yValue });
+    return () => {
+      pieceMotionValues.current.delete(piece.id);
+    };
+  }, [piece.id, xValue, yValue, pieceMotionValues]);
+
+  useEffect(() => {
+    if (!isDragging) {
+      xValue.set(baseRenderX);
+      yValue.set(baseRenderY);
+    }
+  }, [isDragging, baseRenderX, baseRenderY, xValue, yValue]);
+
+  return (
+    <motion.div
+      key={`${resetCount}-${piece.id}`}
+      className={`piece ${piece.type} ${isDragging ? 'dragging' : ''} ${piece.id === 'master' ? 'master' : ''}`}
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ 
+        opacity: 1, 
+        scale: 1, 
+        zIndex: isDragging ? 20 : 1
+      }}
+      transition={{ type: 'spring', stiffness: 500, damping: 40, delay: stagger ? 0.03 * staggerIndex : 0 }}
+      style={{
+        x,
+        y,
+        width: piece.w * cellSize + (piece.w - 1) * GAP,
+        height: piece.h * cellSize + (piece.h - 1) * GAP,
+        touchAction: 'none'
+      }}
+      onPointerDown={(e) => onPointerDown(e, piece)}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
+      <div className="piece-inner" />
+    </motion.div>
+  );
+};
+
 export default function App() {
   const [userTheme, setUserTheme] = useState<'light' | 'dark' | null>(() => {
     return localStorage.getItem('klotski_theme') as 'light' | 'dark' | null;
@@ -30,6 +104,7 @@ export default function App() {
     return saved ? parseInt(saved, 10) : 0;
   });
   const [pieces, setPieces] = useState<Piece[]>(LEVELS[currentLevel] || LEVELS[0]);
+  const piecesRef = useRef<Piece[]>(LEVELS[currentLevel] || LEVELS[0]);
   const [history, setHistory] = useState<Piece[][]>([]);
 
   useEffect(() => {
@@ -56,6 +131,7 @@ export default function App() {
   const loadLevel = (levelIndex: number) => {
     const level = LEVELS[levelIndex] || LEVELS[0];
     setPieces(level);
+    piecesRef.current = level;
     setHistory([]);
     setMoves(0);
     setIsWon(false);
@@ -86,7 +162,8 @@ export default function App() {
   const [isWon, setIsWon] = useState(false);
   const [resetCount, setResetCount] = useState(0);
   const [cellSize, setCellSize] = useState(70);
-  const [dragState, setDragState] = useState<VisualDragState | null>(null);
+  const [dragState, setDragState] = useState<{ pieceId: string, x: number, y: number } | null>(null);
+  
   const [moveClicks, setMoveClicks] = useState<number[]>([]);
   const [isSkipRevealed, setIsSkipRevealed] = useState(false);
 
@@ -100,13 +177,20 @@ export default function App() {
     }
   };
   const dragRef = useRef<{
+    grid: boolean[][];
     pieceId: string;
     pointerX: number;
     pointerY: number;
     pieces: Piece[];
     initialPieces: Piece[];
     hasMoved: boolean;
+    pointerId: number;
+    offsetX: number;
+    offsetY: number;
   } | null>(null);
+  
+  const pieceMotionValues = useRef<Map<string, { x: any, y: any }>>(new Map());
+
   const [stagger, setStagger] = useState(true);
   
   const haptics = useMemo(() => new WebHaptics(), []);
@@ -166,16 +250,19 @@ export default function App() {
     return () => window.removeEventListener('resize', updateSize);
   }, []);
 
-  const getBounds = (piece: Piece, axis: 'x' | 'y', currentPieces: Piece[]) => {
-    const grid = Array(BOARD_H).fill(null).map(() => Array(BOARD_W).fill(false));
-    currentPieces.forEach(p => {
-      if (p.id === piece.id) return;
-      for (let r = 0; r < p.h; r++) {
-        for (let c = 0; c < p.w; c++) {
-          grid[p.y + r][p.x + c] = true;
+  const getBounds = (piece: Piece, axis: 'x' | 'y', currentPieces: Piece[], cachedGrid?: boolean[][]) => {
+    let grid = cachedGrid;
+    if (!grid) {
+      grid = Array(BOARD_H).fill(null).map(() => Array(BOARD_W).fill(false));
+      currentPieces.forEach(p => {
+        if (p.id === piece.id) return;
+        for (let r = 0; r < p.h; r++) {
+          for (let c = 0; c < p.w; c++) {
+            grid![p.y + r][p.x + c] = true;
+          }
         }
-      }
-    });
+      });
+    }
 
     let minDelta = 0;
     let maxDelta = 0;
@@ -184,14 +271,14 @@ export default function App() {
       for (let d = 1; d <= piece.x; d++) {
         let canMove = true;
         for (let r = 0; r < piece.h; r++) {
-          if (grid[piece.y + r][piece.x - d]) canMove = false;
+          if (grid![piece.y + r][piece.x - d]) canMove = false;
         }
         if (canMove) minDelta = -d; else break;
       }
       for (let d = 1; d <= BOARD_W - (piece.x + piece.w); d++) {
         let canMove = true;
         for (let r = 0; r < piece.h; r++) {
-          if (grid[piece.y + r][piece.x + piece.w - 1 + d]) canMove = false;
+          if (grid![piece.y + r][piece.x + piece.w - 1 + d]) canMove = false;
         }
         if (canMove) maxDelta = d; else break;
       }
@@ -199,14 +286,14 @@ export default function App() {
       for (let d = 1; d <= piece.y; d++) {
         let canMove = true;
         for (let c = 0; c < piece.w; c++) {
-          if (grid[piece.y - d][piece.x + c]) canMove = false;
+          if (grid![piece.y - d][piece.x + c]) canMove = false;
         }
         if (canMove) minDelta = -d; else break;
       }
       for (let d = 1; d <= BOARD_H - (piece.y + piece.h); d++) {
         let canMove = true;
         for (let c = 0; c < piece.w; c++) {
-          if (grid[piece.y + piece.h - 1 + d][piece.x + c]) canMove = false;
+          if (grid![piece.y + piece.h - 1 + d][piece.x + c]) canMove = false;
         }
         if (canMove) maxDelta = d; else break;
       }
@@ -215,176 +302,204 @@ export default function App() {
   };
 
   const handlePointerDown = (e: React.PointerEvent, piece: Piece) => {
-    if (isWon) return;
+    Howler.ctx.resume();
+    if (isWon || dragRef.current || e.button !== 0) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     haptics.trigger('selection');
     playSelect();
     
+    const grid = Array(BOARD_H).fill(null).map(() => Array(BOARD_W).fill(false));
+    piecesRef.current.forEach(p => {
+      if (p.id === piece.id) return;
+      for (let r = 0; r < p.h; r++) {
+        for (let c = 0; c < p.w; c++) {
+          grid[p.y + r][p.x + c] = true;
+        }
+      }
+    });
+
     dragRef.current = {
       pieceId: piece.id,
       pointerX: e.clientX,
       pointerY: e.clientY,
-      pieces: pieces,
-      initialPieces: pieces,
-      hasMoved: false
-    };
-
-    setDragState({
-      pieceId: piece.id,
+      pieces: piecesRef.current,
+      initialPieces: piecesRef.current,
+      hasMoved: false,
+      grid,
+      pointerId: e.pointerId,
       offsetX: 0,
       offsetY: 0
+    };
+
+    const unit = cellSize + GAP;
+    setDragState({
+      pieceId: piece.id,
+      x: BOARD_PADDING + piece.x * unit,
+      y: BOARD_PADDING + piece.y * unit
     });
   };
 
   const rAFRef = useRef<number | null>(null);
   const latestPointerRef = useRef<{ x: number, y: number } | null>(null);
 
+  
+  const processPointerMove = () => {
+    rAFRef.current = null;
+    if (!dragRef.current || !latestPointerRef.current) return;
+
+    const state = dragRef.current;
+    const currentPointerX = latestPointerRef.current.x;
+    const currentPointerY = latestPointerRef.current.y;
+    let { pointerX, pointerY, pieces: currentPieces } = state;
+
+    let dx = currentPointerX - pointerX;
+    let dy = currentPointerY - pointerY;
+
+    const unit = cellSize + GAP;
+    const threshold = unit * 0.55;
+
+    let moved = false;
+    let newPieces = currentPieces;
+    let piece = newPieces.find(p => p.id === state.pieceId)!;
+
+    let keepChecking = true;
+    while (keepChecking) {
+      keepChecking = false;
+      
+      const absDx = Math.abs(dx);
+      const absDy = Math.abs(dy);
+      
+      if (absDx > threshold || absDy > threshold) {
+        if (absDx >= absDy) {
+          const dir = Math.sign(dx);
+          const bounds = getBounds(piece, 'x', newPieces, state.grid);
+          if ((dir > 0 && bounds.maxDelta >= 1) || (dir < 0 && bounds.minDelta <= -1)) {
+            newPieces = newPieces.map(p => p.id === piece.id ? { ...p, x: p.x + dir } : p);
+            piece = newPieces.find(p => p.id === state.pieceId)!;
+            pointerX += dir * unit;
+            dx = currentPointerX - pointerX;
+            moved = true;
+            keepChecking = true;
+          } else if (absDy > threshold) {
+            const dirY = Math.sign(dy);
+            const boundsY = getBounds(piece, 'y', newPieces, state.grid);
+            if ((dirY > 0 && boundsY.maxDelta >= 1) || (dirY < 0 && boundsY.minDelta <= -1)) {
+              newPieces = newPieces.map(p => p.id === piece.id ? { ...p, y: p.y + dirY } : p);
+              piece = newPieces.find(p => p.id === state.pieceId)!;
+              pointerY += dirY * unit;
+              dy = currentPointerY - pointerY;
+              moved = true;
+              keepChecking = true;
+            }
+          }
+        } else {
+          const dir = Math.sign(dy);
+          const bounds = getBounds(piece, 'y', newPieces, state.grid);
+          if ((dir > 0 && bounds.maxDelta >= 1) || (dir < 0 && bounds.minDelta <= -1)) {
+            newPieces = newPieces.map(p => p.id === piece.id ? { ...p, y: p.y + dir } : p);
+            piece = newPieces.find(p => p.id === state.pieceId)!;
+            pointerY += dir * unit;
+            dy = currentPointerY - pointerY;
+            moved = true;
+            keepChecking = true;
+          } else if (absDx > threshold) {
+            const dirX = Math.sign(dx);
+            const boundsX = getBounds(piece, 'x', newPieces, state.grid);
+            if ((dirX > 0 && boundsX.maxDelta >= 1) || (dirX < 0 && boundsX.minDelta <= -1)) {
+              newPieces = newPieces.map(p => p.id === piece.id ? { ...p, x: p.x + dirX } : p);
+              piece = newPieces.find(p => p.id === state.pieceId)!;
+              pointerX += dirX * unit;
+              dx = currentPointerX - pointerX;
+              moved = true;
+              keepChecking = true;
+            }
+          }
+        }
+      }
+    }
+
+    const boundsX = getBounds(piece, 'x', newPieces, state.grid);
+    const boundsY = getBounds(piece, 'y', newPieces, state.grid);
+    const minPx = boundsX.minDelta * unit;
+    const maxPx = boundsX.maxDelta * unit;
+    const minPy = boundsY.minDelta * unit;
+    const maxPy = boundsY.maxDelta * unit;
+    
+    dx = currentPointerX - pointerX;
+    dy = currentPointerY - pointerY;
+
+    if (dx > maxPx) {
+      pointerX = currentPointerX - maxPx;
+      dx = maxPx;
+    } else if (dx < minPx) {
+      pointerX = currentPointerX - minPx;
+      dx = minPx;
+    }
+
+    if (dy > maxPy) {
+      pointerY = currentPointerY - maxPy;
+      dy = maxPy;
+    } else if (dy < minPy) {
+      pointerY = currentPointerY - minPy;
+      dy = minPy;
+    }
+
+    const offsetX = dx;
+    const offsetY = dy;
+
+    state.pointerX = pointerX;
+    state.pointerY = pointerY;
+    state.pieces = newPieces;
+    state.offsetX = offsetX;
+    state.offsetY = offsetY;
+    if (moved) state.hasMoved = true;
+
+    if (moved) {
+      setPieces(newPieces);
+      piecesRef.current = newPieces;
+      haptics.trigger('light');
+      playMove();
+      const master = newPieces.find(p => p.id === 'master')!;
+      if (master.x === 1 && master.y === 3) {
+        setIsWon(true);
+        haptics.trigger('success');
+        playWin();
+        dragRef.current = null;
+        setDragState(null);
+        return;
+      }
+    }
+
+    const motionValues = pieceMotionValues.current.get(piece.id);
+    if (motionValues) {
+      motionValues.x.set(BOARD_PADDING + piece.x * unit + offsetX);
+      motionValues.y.set(BOARD_PADDING + piece.y * unit + offsetY);
+    }
+    rAFRef.current = null;
+  };
+
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!dragRef.current) return;
+    if (!dragRef.current || dragRef.current.pointerId !== e.pointerId) return;
 
     latestPointerRef.current = { x: e.clientX, y: e.clientY };
 
     if (rAFRef.current !== null) return;
 
-    rAFRef.current = requestAnimationFrame(() => {
-      rAFRef.current = null;
-      if (!dragRef.current || !latestPointerRef.current) return;
-
-      const state = dragRef.current;
-      const currentPointerX = latestPointerRef.current.x;
-      const currentPointerY = latestPointerRef.current.y;
-      let { pointerX, pointerY, pieces: currentPieces } = state;
-
-      let dx = currentPointerX - pointerX;
-      let dy = currentPointerY - pointerY;
-
-      const unit = cellSize + GAP;
-      const threshold = unit * 0.55;
-
-      let moved = false;
-      let newPieces = currentPieces;
-      let piece = newPieces.find(p => p.id === state.pieceId)!;
-
-      let keepChecking = true;
-      while (keepChecking) {
-        keepChecking = false;
-        
-        const absDx = Math.abs(dx);
-        const absDy = Math.abs(dy);
-        
-        if (absDx > threshold || absDy > threshold) {
-          if (absDx >= absDy) {
-            const dir = Math.sign(dx);
-            const bounds = getBounds(piece, 'x', newPieces);
-            if ((dir > 0 && bounds.maxDelta >= 1) || (dir < 0 && bounds.minDelta <= -1)) {
-              newPieces = newPieces.map(p => p.id === piece.id ? { ...p, x: p.x + dir } : p);
-              piece = newPieces.find(p => p.id === state.pieceId)!;
-              pointerX += dir * unit;
-              dx = currentPointerX - pointerX;
-              moved = true;
-              keepChecking = true;
-            } else if (absDy > threshold) {
-              const dirY = Math.sign(dy);
-              const boundsY = getBounds(piece, 'y', newPieces);
-              if ((dirY > 0 && boundsY.maxDelta >= 1) || (dirY < 0 && boundsY.minDelta <= -1)) {
-                newPieces = newPieces.map(p => p.id === piece.id ? { ...p, y: p.y + dirY } : p);
-                piece = newPieces.find(p => p.id === state.pieceId)!;
-                pointerY += dirY * unit;
-                dy = currentPointerY - pointerY;
-                moved = true;
-                keepChecking = true;
-              }
-            }
-          } else {
-            const dir = Math.sign(dy);
-            const bounds = getBounds(piece, 'y', newPieces);
-            if ((dir > 0 && bounds.maxDelta >= 1) || (dir < 0 && bounds.minDelta <= -1)) {
-              newPieces = newPieces.map(p => p.id === piece.id ? { ...p, y: p.y + dir } : p);
-              piece = newPieces.find(p => p.id === state.pieceId)!;
-              pointerY += dir * unit;
-              dy = currentPointerY - pointerY;
-              moved = true;
-              keepChecking = true;
-            } else if (absDx > threshold) {
-              const dirX = Math.sign(dx);
-              const boundsX = getBounds(piece, 'x', newPieces);
-              if ((dirX > 0 && boundsX.maxDelta >= 1) || (dirX < 0 && boundsX.minDelta <= -1)) {
-                newPieces = newPieces.map(p => p.id === piece.id ? { ...p, x: p.x + dirX } : p);
-                piece = newPieces.find(p => p.id === state.pieceId)!;
-                pointerX += dirX * unit;
-                dx = currentPointerX - pointerX;
-                moved = true;
-                keepChecking = true;
-              }
-            }
-          }
-        }
-      }
-
-      const boundsX = getBounds(piece, 'x', newPieces);
-      const boundsY = getBounds(piece, 'y', newPieces);
-      const minPx = boundsX.minDelta * unit;
-      const maxPx = boundsX.maxDelta * unit;
-      const minPy = boundsY.minDelta * unit;
-      const maxPy = boundsY.maxDelta * unit;
-      
-      dx = currentPointerX - pointerX;
-      dy = currentPointerY - pointerY;
-
-      if (dx > maxPx) {
-        pointerX = currentPointerX - maxPx;
-        dx = maxPx;
-      } else if (dx < minPx) {
-        pointerX = currentPointerX - minPx;
-        dx = minPx;
-      }
-
-      if (dy > maxPy) {
-        pointerY = currentPointerY - maxPy;
-        dy = maxPy;
-      } else if (dy < minPy) {
-        pointerY = currentPointerY - minPy;
-        dy = minPy;
-      }
-
-      const offsetX = dx;
-      const offsetY = dy;
-
-      state.pointerX = pointerX;
-      state.pointerY = pointerY;
-      state.pieces = newPieces;
-      if (moved) state.hasMoved = true;
-
-      if (moved) {
-        setPieces(newPieces);
-        haptics.trigger('light');
-        playMove();
-        const master = newPieces.find(p => p.id === 'master')!;
-        if (master.x === 1 && master.y === 3) {
-          setIsWon(true);
-          haptics.trigger('success');
-          playWin();
-          dragRef.current = null;
-          setDragState(null);
-          return;
-        }
-      }
-
-      setDragState({
-        pieceId: state.pieceId,
-        offsetX,
-        offsetY
-      });
-    });
+    rAFRef.current = requestAnimationFrame(processPointerMove);
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
+    if (!dragRef.current || dragRef.current.pointerId !== e.pointerId) return;
     if (rAFRef.current !== null) {
       cancelAnimationFrame(rAFRef.current);
       rAFRef.current = null;
+      processPointerMove();
     }
-    if (!dragRef.current) return;
-    e.currentTarget.releasePointerCapture(e.pointerId);
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch (err) {}
 
     const state = dragRef.current;
     let finalPieces = state.pieces;
@@ -392,16 +507,18 @@ export default function App() {
 
     const unit = cellSize + GAP;
     const piece = finalPieces.find(p => p.id === state.pieceId)!;
-    const boundsX = getBounds(piece, 'x', finalPieces);
-    const boundsY = getBounds(piece, 'y', finalPieces);
+    const boundsX = getBounds(piece, 'x', finalPieces, state.grid);
+    const boundsY = getBounds(piece, 'y', finalPieces, state.grid);
     
     const minPx = boundsX.minDelta * unit;
     const maxPx = boundsX.maxDelta * unit;
     const minPy = boundsY.minDelta * unit;
     const maxPy = boundsY.maxDelta * unit;
     
-    const clampedOffsetX = Math.max(minPx, Math.min(maxPx, dragState?.offsetX || 0));
-    const clampedOffsetY = Math.max(minPy, Math.min(maxPy, dragState?.offsetY || 0));
+    const currentDx = state.offsetX;
+    const clampedOffsetX = Math.max(minPx, Math.min(maxPx, currentDx));
+    const currentDy = state.offsetY;
+    const clampedOffsetY = Math.max(minPy, Math.min(maxPy, currentDy));
     
     let logicalDeltaX = Math.round(clampedOffsetX / unit);
     let logicalDeltaY = Math.round(clampedOffsetY / unit);
@@ -426,6 +543,7 @@ export default function App() {
         return p;
       });
       setPieces(finalPieces);
+      piecesRef.current = finalPieces;
       didMoveNow = true;
       haptics.trigger('light');
       playMove();
@@ -455,6 +573,7 @@ export default function App() {
     playSelect();
     const prev = history[history.length - 1];
     setPieces(prev);
+    piecesRef.current = prev;
     setHistory(h => h.slice(0, -1));
     setMoves(m => m - 1);
   };
@@ -500,46 +619,23 @@ export default function App() {
           }}
         />
         
-        {pieces.map(piece => {
-          const isDragging = dragState?.pieceId === piece.id;
-          const unit = cellSize + GAP;
-
-          let renderX = BOARD_PADDING + piece.x * unit;
-          let renderY = BOARD_PADDING + piece.y * unit;
-
-          if (isDragging && dragState) {
-            renderX += dragState.offsetX;
-            renderY += dragState.offsetY;
-          }
-
-          return (
-            <motion.div
-              key={`${resetCount}-${piece.id}`}
-              className={`piece ${piece.type} ${isDragging ? 'dragging' : ''} ${piece.id === 'master' ? 'master' : ''}`}
-              initial={{ opacity: 0, scale: 0.8, y: renderY + 20, x: renderX }}
-              animate={{ 
-                opacity: 1, 
-                scale: 1, 
-                x: renderX, 
-                y: renderY,
-                zIndex: isDragging ? 20 : 1
-              }}
-              transition={isDragging 
-                ? { type: 'spring', stiffness: 400, damping: 25 } 
-                : { type: 'spring', stiffness: 500, damping: 40, delay: stagger ? 0.03 * pieces.indexOf(piece) : 0 }}
-              style={{
-                width: piece.w * cellSize + (piece.w - 1) * GAP,
-                height: piece.h * cellSize + (piece.h - 1) * GAP,
-              }}
-              onPointerDown={(e) => handlePointerDown(e, piece)}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              onPointerCancel={handlePointerUp}
-            >
-              <div className="piece-inner" />
-            </motion.div>
-          );
-        })}
+        {pieces.map((piece, index) => (
+          <PieceComponent
+            key={`${resetCount}-${piece.id}`}
+            piece={piece}
+            isDragging={dragState?.pieceId === piece.id}
+            cellSize={cellSize}
+            GAP={GAP}
+            BOARD_PADDING={BOARD_PADDING}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            staggerIndex={index}
+            stagger={stagger}
+            resetCount={resetCount}
+            pieceMotionValues={pieceMotionValues}
+          />
+        ))}
       </div>
 
       <div className="controls">
