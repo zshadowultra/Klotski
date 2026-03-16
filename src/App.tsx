@@ -580,17 +580,29 @@ export default function App() {
     setDragState(null);
   };
 
+  const handlersRef = useRef({
+    handlePointerMove,
+    handlePointerUp
+  });
+
   useEffect(() => {
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
-    window.addEventListener('pointercancel', handlePointerUp);
+    handlersRef.current = { handlePointerMove, handlePointerUp };
+  });
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => handlersRef.current.handlePointerMove(e);
+    const onUp = (e: PointerEvent) => handlersRef.current.handlePointerUp(e);
+    
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
 
     return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-      window.removeEventListener('pointercancel', handlePointerUp);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
     };
-  }, [handlePointerMove, handlePointerUp]);
+  }, []);
 
   const handleUndo = () => {
     if (history.length === 0 || isWon || dragRef.current) return;

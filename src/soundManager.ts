@@ -1,5 +1,15 @@
+import moveSound from './assets/sounds/move.mp3';
+import selectSound from './assets/sounds/select.mp3';
+import winSound from './assets/sounds/win.mp3';
+
 let audioCtx: AudioContext | null = null;
 const bufferCache = new Map<string, AudioBuffer>();
+
+const soundUrls = {
+  move: moveSound,
+  select: selectSound,
+  win: winSound
+};
 
 export function initAudioSync() {
   if (!audioCtx) {
@@ -22,21 +32,30 @@ export async function initAudio() {
   await Promise.all(soundNames.map(name => getBuffer(name)));
 }
 
-async function getBuffer(soundName: string): Promise<AudioBuffer> {
+async function getBuffer(soundName: 'move' | 'select' | 'win'): Promise<AudioBuffer> {
   if (bufferCache.has(soundName)) {
     return bufferCache.get(soundName)!;
   }
 
-  const baseUrl = import.meta.env.BASE_URL || '/';
-  const safeBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
-  const url = `${safeBaseUrl}sounds/${soundName}.ogg`;
+  const url = soundUrls[soundName];
   
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Failed to fetch sound: ${url}`);
   }
   const arrayBuffer = await res.arrayBuffer();
-  const audioBuffer = await audioCtx!.decodeAudioData(arrayBuffer);
+  
+  const audioBuffer = await new Promise<AudioBuffer>((resolve, reject) => {
+    const decodePromise = audioCtx!.decodeAudioData(
+      arrayBuffer,
+      (buffer) => resolve(buffer),
+      (err) => reject(err)
+    );
+    if (decodePromise) {
+      decodePromise.then(resolve).catch(reject);
+    }
+  });
+
   bufferCache.set(soundName, audioBuffer);
   return audioBuffer;
 }
