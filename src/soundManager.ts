@@ -1,15 +1,6 @@
-import moveSound from './assets/sounds/move.mp3?url';
-import selectSound from './assets/sounds/select.mp3?url';
-import winSound from './assets/sounds/win.mp3?url';
-
 let audioCtx: AudioContext | null = null;
 const bufferCache = new Map<string, AudioBuffer>();
-
-const soundUrls = {
-  move: moveSound,
-  select: selectSound,
-  win: winSound
-};
+let soundUrls: { move: string; select: string; win: string } | null = null;
 
 export function initAudioSync() {
   if (!audioCtx) {
@@ -40,7 +31,8 @@ export function initAudioSync() {
   }
 }
 
-export async function initAudio() {
+export async function initAudio(urls: { move: string; select: string; win: string }) {
+  soundUrls = urls;
   initAudioSync();
   if (!audioCtx) return;
   
@@ -54,17 +46,29 @@ async function getBuffer(soundName: 'move' | 'select' | 'win'): Promise<AudioBuf
     return bufferCache.get(soundName)!;
   }
 
+  if (!soundUrls) {
+    throw new Error('Sound URLs not initialized');
+  }
+
   const url = soundUrls[soundName];
+  console.log(`Fetching sound: ${soundName} from URL: ${url}`);
   
   const res = await fetch(url);
+  console.log(`Fetch response for ${soundName}:`, res.status, res.statusText, res.headers.get('content-type'));
+  
   if (!res.ok) {
-    throw new Error(`Failed to fetch sound: ${url}`);
+    throw new Error(`Failed to fetch sound: ${url} (Status: ${res.status})`);
   }
   const arrayBuffer = await res.arrayBuffer();
+  console.log(`Fetched arrayBuffer for ${soundName}, length: ${arrayBuffer.byteLength}`);
   
   const audioBuffer = await new Promise<AudioBuffer>((resolve, reject) => {
     try {
-      const decodePromise = audioCtx!.decodeAudioData(
+      if (!audioCtx) {
+        reject(new Error('AudioContext not initialized'));
+        return;
+      }
+      const decodePromise = audioCtx.decodeAudioData(
         arrayBuffer,
         (buffer) => resolve(buffer),
         (err) => reject(err)
@@ -73,6 +77,7 @@ async function getBuffer(soundName: 'move' | 'select' | 'win'): Promise<AudioBuf
         decodePromise.then(resolve).catch(reject);
       }
     } catch (e) {
+      console.error(`Decoding error for ${soundName}:`, e);
       reject(e);
     }
   });

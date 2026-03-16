@@ -5,6 +5,9 @@ import { WebHaptics } from 'web-haptics';
 import { motion, AnimatePresence, useMotionValue, useSpring } from 'motion/react';
 import { Piece } from './types';
 import { LEVELS } from './levels';
+import moveSound from './assets/sounds/move.mp3?url';
+import selectSound from './assets/sounds/select.mp3?url';
+import winSound from './assets/sounds/win.mp3?url';
 
 const BOARD_W = 4;
 const BOARD_H = 5;
@@ -310,13 +313,20 @@ export default function App() {
   };
 
   useEffect(() => {
-    import('./soundManager').then(m => m.initAudio());
+    import('./soundManager').then(m => m.initAudio({ move: moveSound, select: selectSound, win: winSound }));
   }, []);
 
   const handlePointerDown = (e: React.PointerEvent, piece: Piece) => {
     initAudioSync();
     if (isWon || dragRef.current || e.button !== 0) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
+    
+    // 1. Immediate pointer capture
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch (err) {
+      console.warn("Failed to set pointer capture", err);
+    }
+
     haptics.trigger('selection');
     playSelect();
     
@@ -330,6 +340,7 @@ export default function App() {
       }
     });
 
+    // 2. Synchronous ref update
     dragRef.current = {
       pieceId: piece.id,
       pointerX: e.clientX,
@@ -343,6 +354,7 @@ export default function App() {
       offsetY: 0
     };
 
+    // 3. Asynchronous state update (UI feedback)
     const unit = cellSize + GAP;
     setDragState({
       pieceId: piece.id,
