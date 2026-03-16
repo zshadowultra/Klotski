@@ -40,9 +40,9 @@ const PieceComponent = ({
   const yValue = useMotionValue(baseRenderY);
 
   const springConfig = useMemo(() => ({
-    stiffness: 400,
-    damping: 30,
-    mass: 0.5
+    stiffness: 500,
+    damping: 35,
+    mass: 0.35
   }), []);
 
   const x = useSpring(xValue, springConfig);
@@ -82,9 +82,6 @@ const PieceComponent = ({
         userSelect: 'none'
       }}
       onPointerDown={(e) => onPointerDown(e, piece)}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
       onContextMenu={(e) => e.preventDefault()}
       onDragStart={(e) => e.preventDefault()}
     >
@@ -371,7 +368,7 @@ export default function App() {
     let dy = currentPointerY - pointerY;
 
     const unit = cellSize + GAP;
-    const threshold = unit * 0.55;
+    const threshold = unit * 0.51;
 
     let stepsCount = 0;
     let newPieces = currentPieces;
@@ -493,7 +490,7 @@ export default function App() {
     rAFRef.current = null;
   };
 
-  const handlePointerMove = (e: React.PointerEvent) => {
+  const handlePointerMove = (e: PointerEvent) => {
     if (!dragRef.current || dragRef.current.pointerId !== e.pointerId) return;
 
     latestPointerRef.current = { x: e.clientX, y: e.clientY };
@@ -503,7 +500,7 @@ export default function App() {
     rAFRef.current = requestAnimationFrame(processPointerMove);
   };
 
-  const handlePointerUp = (e: React.PointerEvent) => {
+  const handlePointerUp = (e: PointerEvent) => {
     if (!dragRef.current || dragRef.current.pointerId !== e.pointerId) return;
     if (rAFRef.current !== null) {
       cancelAnimationFrame(rAFRef.current);
@@ -511,8 +508,9 @@ export default function App() {
       processPointerMove();
     }
     try {
-      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-        e.currentTarget.releasePointerCapture(e.pointerId);
+      const target = e.target as HTMLElement;
+      if (target && typeof target.hasPointerCapture === 'function' && target.hasPointerCapture(e.pointerId)) {
+        target.releasePointerCapture(e.pointerId);
       }
     } catch (err) {}
 
@@ -582,8 +580,20 @@ export default function App() {
     setDragState(null);
   };
 
+  useEffect(() => {
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
+    };
+  }, [handlePointerMove, handlePointerUp]);
+
   const handleUndo = () => {
-    if (history.length === 0 || isWon) return;
+    if (history.length === 0 || isWon || dragRef.current) return;
     haptics.trigger('light');
     playSelect();
     const prev = history[history.length - 1];
@@ -594,6 +604,7 @@ export default function App() {
   };
 
   const handleReset = () => {
+    if (dragRef.current) return;
     haptics.trigger('medium');
     playSelect();
     loadLevel(currentLevel);
