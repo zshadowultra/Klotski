@@ -28,7 +28,8 @@ async function getBuffer(soundName: string): Promise<AudioBuffer> {
   }
 
   const baseUrl = import.meta.env.BASE_URL || '/';
-  const url = `${baseUrl}sounds/${soundName}.ogg`;
+  const safeBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+  const url = `${safeBaseUrl}sounds/${soundName}.ogg`;
   
   const res = await fetch(url);
   if (!res.ok) {
