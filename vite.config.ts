@@ -14,6 +14,9 @@ export default defineConfig(({mode}) => {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    build: {
+      assetsInlineLimit: 0,
+    },
     server: {
       hmr: process.env.DISABLE_HMR !== 'true',
     },

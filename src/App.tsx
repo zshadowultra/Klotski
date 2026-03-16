@@ -210,14 +210,14 @@ export default function App() {
     if (count === 1) {
       // Standard single-step throttle
       if (now - lastSoundTime.current.move > 60) {
-        playSound('move', 0.15);
+        playSound('move', 0.3);
         lastSoundTime.current.move = now;
       }
     } else {
       // For multi-step moves (fast drags), play a sequence of sounds
       for (let i = 0; i < count; i++) {
         setTimeout(() => {
-          playSound('move', 0.12);
+          playSound('move', 0.2);
         }, i * 50);
       }
       // Set throttle to end of the sequence
@@ -310,7 +310,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    // Howler is now managed in soundManager.ts
+    import('./soundManager').then(m => m.initAudio());
   }, []);
 
   const handlePointerDown = (e: React.PointerEvent, piece: Piece) => {

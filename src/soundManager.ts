@@ -1,6 +1,6 @@
-import moveSound from './assets/sounds/move.mp3';
-import selectSound from './assets/sounds/select.mp3';
-import winSound from './assets/sounds/win.mp3';
+import moveSound from './assets/sounds/move.mp3?url';
+import selectSound from './assets/sounds/select.mp3?url';
+import winSound from './assets/sounds/win.mp3?url';
 
 let audioCtx: AudioContext | null = null;
 const bufferCache = new Map<string, AudioBuffer>();
@@ -16,10 +16,27 @@ export function initAudioSync() {
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
     if (AudioContextClass) {
       audioCtx = new AudioContextClass();
+      
+      // Attach global listeners to ensure audio context resumes on any user interaction
+      const resumeAudio = () => {
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume().catch(() => {});
+        }
+        // Remove listeners once running
+        if (audioCtx && audioCtx.state === 'running') {
+          ['click', 'touchstart', 'keydown', 'mousedown'].forEach(evt => {
+            document.removeEventListener(evt, resumeAudio);
+          });
+        }
+      };
+
+      ['click', 'touchstart', 'keydown', 'mousedown', 'pointerdown'].forEach(evt => {
+        document.addEventListener(evt, resumeAudio, { once: true, capture: true });
+      });
     }
   }
   if (audioCtx && audioCtx.state === "suspended") {
-    audioCtx.resume();
+    audioCtx.resume().catch(() => {});
   }
 }
 
@@ -46,13 +63,17 @@ async function getBuffer(soundName: 'move' | 'select' | 'win'): Promise<AudioBuf
   const arrayBuffer = await res.arrayBuffer();
   
   const audioBuffer = await new Promise<AudioBuffer>((resolve, reject) => {
-    const decodePromise = audioCtx!.decodeAudioData(
-      arrayBuffer,
-      (buffer) => resolve(buffer),
-      (err) => reject(err)
-    );
-    if (decodePromise) {
-      decodePromise.then(resolve).catch(reject);
+    try {
+      const decodePromise = audioCtx!.decodeAudioData(
+        arrayBuffer,
+        (buffer) => resolve(buffer),
+        (err) => reject(err)
+      );
+      if (decodePromise) {
+        decodePromise.then(resolve).catch(reject);
+      }
+    } catch (e) {
+      reject(e);
     }
   });
 
