@@ -1,4 +1,4 @@
-import { playSound } from './soundManager';
+import { playSound, initAudioSync } from './soundManager';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { RotateCcw, Undo2, Check, Moon, Sun, ChevronLeft, ChevronRight } from 'lucide-react';
 import { WebHaptics } from 'web-haptics';
@@ -317,6 +317,7 @@ export default function App() {
   }, []);
 
   const handlePointerDown = (e: React.PointerEvent, piece: Piece) => {
+    initAudioSync();
     if (isWon || dragRef.current || e.button !== 0) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     haptics.trigger('selection');
