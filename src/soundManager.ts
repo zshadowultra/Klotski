@@ -1,13 +1,3 @@
-import moveSoundUrl from './assets/sounds/move.ogg';
-import selectSoundUrl from './assets/sounds/select.ogg';
-import winSoundUrl from './assets/sounds/win.ogg';
-
-const soundUrls: Record<string, string> = {
-  move: moveSoundUrl,
-  select: selectSoundUrl,
-  win: winSoundUrl,
-};
-
 let audioCtx: AudioContext | null = null;
 const bufferCache = new Map<string, AudioBuffer>();
 
@@ -37,7 +27,9 @@ async function getBuffer(soundName: string): Promise<AudioBuffer> {
     return bufferCache.get(soundName)!;
   }
 
-  const url = soundUrls[soundName];
+  const baseUrl = import.meta.env.BASE_URL || '/';
+  const url = `${baseUrl}sounds/${soundName}.ogg`;
+  
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Failed to fetch sound: ${url}`);
