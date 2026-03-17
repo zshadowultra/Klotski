@@ -23,6 +23,9 @@ html, body {
   height: 100%;
   overflow: hidden;
   background-color: var(--bg);
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 body {
@@ -198,6 +201,9 @@ body {
   user-select: none;
   cursor: grab;
   transition: box-shadow 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.3s ease;
+  will-change: transform;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 .piece::before {

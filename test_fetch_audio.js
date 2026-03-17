@@ -9,8 +9,9 @@ import { chromium } from 'playwright';
   // We need to know the URL. The soundManager uses the imported URL.
   // I'll try to fetch a known path.
   const urls = [
-    '/assets/sounds/move.mp3',
-    '/assets/move-CHX_qmNS.mp3' // Based on previous list_dir
+    '/sounds/move.mp3',
+    '/sounds/select.mp3',
+    '/sounds/win.mp3'
   ];
   
   for (const url of urls) {

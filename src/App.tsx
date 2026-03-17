@@ -1,10 +1,11 @@
-import { playSound, initAudioSync } from './soundManager';
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { playSound, initAudioSync, initAudio } from './soundManager';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { RotateCcw, Undo2, Check, Moon, Sun, ChevronLeft, ChevronRight } from 'lucide-react';
 import { WebHaptics } from 'web-haptics';
 import { motion, AnimatePresence, useMotionValue, useSpring } from 'motion/react';
 import { Piece } from './types';
 import { LEVELS } from './levels';
+
 import moveSound from './assets/sounds/move.mp3?url';
 import selectSound from './assets/sounds/select.mp3?url';
 import winSound from './assets/sounds/win.mp3?url';
@@ -14,6 +15,62 @@ const BOARD_H = 5;
 const GAP = 6;
 const BOARD_PADDING = 14;
 
+function getBounds(
+  piece: Piece,
+  axis: 'x' | 'y',
+  currentPieces: Piece[],
+  cachedGrid?: boolean[][]
+): { minDelta: number; maxDelta: number } {
+  let grid = cachedGrid;
+  if (!grid) {
+    grid = Array(BOARD_H).fill(null).map(() => Array(BOARD_W).fill(false));
+    currentPieces.forEach(p => {
+      if (p.id === piece.id) return;
+      for (let r = 0; r < p.h; r++) {
+        for (let c = 0; c < p.w; c++) {
+          grid![p.y + r][p.x + c] = true;
+        }
+      }
+    });
+  }
+
+  let minDelta = 0;
+  let maxDelta = 0;
+
+  if (axis === 'x') {
+    for (let d = 1; d <= piece.x; d++) {
+      let canMove = true;
+      for (let r = 0; r < piece.h; r++) {
+        if (grid![piece.y + r][piece.x - d]) canMove = false;
+      }
+      if (canMove) minDelta = -d; else break;
+    }
+    for (let d = 1; d <= BOARD_W - (piece.x + piece.w); d++) {
+      let canMove = true;
+      for (let r = 0; r < piece.h; r++) {
+        if (grid![piece.y + r][piece.x + piece.w - 1 + d]) canMove = false;
+      }
+      if (canMove) maxDelta = d; else break;
+    }
+  } else {
+    for (let d = 1; d <= piece.y; d++) {
+      let canMove = true;
+      for (let c = 0; c < piece.w; c++) {
+        if (grid![piece.y - d][piece.x + c]) canMove = false;
+      }
+      if (canMove) minDelta = -d; else break;
+    }
+    for (let d = 1; d <= BOARD_H - (piece.y + piece.h); d++) {
+      let canMove = true;
+      for (let c = 0; c < piece.w; c++) {
+        if (grid![piece.y + piece.h - 1 + d][piece.x + c]) canMove = false;
+      }
+      if (canMove) maxDelta = d; else break;
+    }
+  }
+  return { minDelta, maxDelta };
+}
+
 interface VisualDragState {
   pieceId: string;
   offsetX: number;
@@ -21,15 +78,13 @@ interface VisualDragState {
 }
 
 
-const PieceComponent = ({
+const PieceComponent = React.memo(({
   piece,
   isDragging,
   cellSize,
   GAP,
   BOARD_PADDING,
   onPointerDown,
-  onPointerMove,
-  onPointerUp,
   staggerIndex,
   stagger,
   resetCount,
@@ -72,13 +127,13 @@ const PieceComponent = ({
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ 
         opacity: 1, 
-        scale: 1, 
-        zIndex: isDragging ? 20 : 1
+        scale: 1
       }}
       transition={{ type: 'spring', stiffness: 500, damping: 40, delay: stagger ? 0.03 * staggerIndex : 0 }}
       style={{
-        x,
-        y,
+        x: isDragging ? xValue : x,
+        y: isDragging ? yValue : y,
+        zIndex: isDragging ? 20 : 1,
         width: piece.w * cellSize + (piece.w - 1) * GAP,
         height: piece.h * cellSize + (piece.h - 1) * GAP,
         touchAction: 'none',
@@ -91,7 +146,19 @@ const PieceComponent = ({
       <div className="piece-inner" />
     </motion.div>
   );
-};
+}, (prev: any, next: any) => {
+  return (
+    prev.piece.x === next.piece.x &&
+    prev.piece.y === next.piece.y &&
+    prev.piece.id === next.piece.id &&
+    prev.isDragging === next.isDragging &&
+    prev.cellSize === next.cellSize &&
+    prev.stagger === next.stagger &&
+    prev.staggerIndex === next.staggerIndex &&
+    prev.resetCount === next.resetCount &&
+    prev.onPointerDown === next.onPointerDown
+  );
+});
 
 export default function App() {
   const [userTheme, setUserTheme] = useState<'light' | 'dark' | null>(() => {
@@ -168,6 +235,7 @@ export default function App() {
   
   const [moveClicks, setMoveClicks] = useState<number[]>([]);
   const [isSkipRevealed, setIsSkipRevealed] = useState(false);
+  const boardRef = useRef<HTMLDivElement>(null);
 
   const handleMovesClick = () => {
     const now = Date.now();
@@ -199,42 +267,42 @@ export default function App() {
 
   const lastSoundTime = useRef<{ select: number; move: number; win: number }>({ select: 0, move: 0, win: 0 });
 
-  const playSelect = async () => {
+  const playSelect = useCallback(() => {
     const now = Date.now();
     if (now - lastSoundTime.current.select > 100) {
-      await playSound('select');
+      playSound('select').catch(() => {});
       lastSoundTime.current.select = now;
     }
-  };
+  }, []);
 
-  const playMove = async (count = 1) => {
+  const playMove = useCallback((count = 1) => {
     const now = Date.now();
     
     if (count === 1) {
       // Standard single-step throttle
       if (now - lastSoundTime.current.move > 60) {
-        playSound('move', 0.3);
+        playSound('move', 0.3).catch(() => {});
         lastSoundTime.current.move = now;
       }
     } else {
       // For multi-step moves (fast drags), play a sequence of sounds
       for (let i = 0; i < count; i++) {
         setTimeout(() => {
-          playSound('move', 0.2);
+          playSound('move', 0.2).catch(() => {});
         }, i * 50);
       }
       // Set throttle to end of the sequence
       lastSoundTime.current.move = now + (count * 50);
     }
-  };
+  }, []);
 
-  const playWin = async () => {
+  const playWin = useCallback(() => {
     const now = Date.now();
     if (now - lastSoundTime.current.win > 1000) {
-      await playSound('win');
+      playSound('win').catch(() => {});
       lastSoundTime.current.win = now;
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (stagger) {
@@ -261,74 +329,21 @@ export default function App() {
     return () => window.removeEventListener('resize', updateSize);
   }, []);
 
-  const getBounds = (piece: Piece, axis: 'x' | 'y', currentPieces: Piece[], cachedGrid?: boolean[][]) => {
-    let grid = cachedGrid;
-    if (!grid) {
-      grid = Array(BOARD_H).fill(null).map(() => Array(BOARD_W).fill(false));
-      currentPieces.forEach(p => {
-        if (p.id === piece.id) return;
-        for (let r = 0; r < p.h; r++) {
-          for (let c = 0; c < p.w; c++) {
-            grid![p.y + r][p.x + c] = true;
-          }
-        }
-      });
-    }
-
-    let minDelta = 0;
-    let maxDelta = 0;
-
-    if (axis === 'x') {
-      for (let d = 1; d <= piece.x; d++) {
-        let canMove = true;
-        for (let r = 0; r < piece.h; r++) {
-          if (grid![piece.y + r][piece.x - d]) canMove = false;
-        }
-        if (canMove) minDelta = -d; else break;
-      }
-      for (let d = 1; d <= BOARD_W - (piece.x + piece.w); d++) {
-        let canMove = true;
-        for (let r = 0; r < piece.h; r++) {
-          if (grid![piece.y + r][piece.x + piece.w - 1 + d]) canMove = false;
-        }
-        if (canMove) maxDelta = d; else break;
-      }
-    } else {
-      for (let d = 1; d <= piece.y; d++) {
-        let canMove = true;
-        for (let c = 0; c < piece.w; c++) {
-          if (grid![piece.y - d][piece.x + c]) canMove = false;
-        }
-        if (canMove) minDelta = -d; else break;
-      }
-      for (let d = 1; d <= BOARD_H - (piece.y + piece.h); d++) {
-        let canMove = true;
-        for (let c = 0; c < piece.w; c++) {
-          if (grid![piece.y + piece.h - 1 + d][piece.x + c]) canMove = false;
-        }
-        if (canMove) maxDelta = d; else break;
-      }
-    }
-    return { minDelta, maxDelta };
-  };
-
   useEffect(() => {
-    import('./soundManager').then(m => m.initAudio({ move: moveSound, select: selectSound, win: winSound }));
+    initAudioSync();
   }, []);
 
-  const handlePointerDown = (e: React.PointerEvent, piece: Piece) => {
-    initAudioSync();
+  const audioInitializedRef = useRef(false);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent, piece: Piece) => {
     if (isWon || dragRef.current || e.button !== 0) return;
     
-    // 1. Immediate pointer capture
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch (err) {
-      console.warn("Failed to set pointer capture", err);
+    if (!audioInitializedRef.current) {
+      audioInitializedRef.current = true;
+      initAudio({ move: moveSound, select: selectSound, win: winSound }).catch(() => {});
     }
-
-    haptics.trigger('selection');
-    playSelect();
+    
+    boardRef.current?.setPointerCapture(e.pointerId);
     
     const grid = Array(BOARD_H).fill(null).map(() => Array(BOARD_W).fill(false));
     piecesRef.current.forEach(p => {
@@ -340,7 +355,6 @@ export default function App() {
       }
     });
 
-    // 2. Synchronous ref update
     dragRef.current = {
       pieceId: piece.id,
       pointerX: e.clientX,
@@ -354,14 +368,16 @@ export default function App() {
       offsetY: 0
     };
 
-    // 3. Asynchronous state update (UI feedback)
     const unit = cellSize + GAP;
     setDragState({
       pieceId: piece.id,
       x: BOARD_PADDING + piece.x * unit,
       y: BOARD_PADDING + piece.y * unit
     });
-  };
+
+    haptics.trigger('selection');
+    playSelect();
+  }, [cellSize, isWon, haptics, playSelect]);
 
   const rAFRef = useRef<number | null>(null);
   const latestPointerRef = useRef<{ x: number, y: number } | null>(null);
@@ -479,12 +495,12 @@ export default function App() {
     if (stepsCount > 0) state.hasMoved = true;
 
     if (stepsCount > 0) {
-      setPieces(newPieces);
       piecesRef.current = newPieces;
       haptics.trigger('light');
       playMove(stepsCount);
       const master = newPieces.find(p => p.id === 'master')!;
       if (master.x === 1 && master.y === 3) {
+        setPieces(newPieces);
         setIsWon(true);
         haptics.trigger('success');
         playWin();
@@ -509,7 +525,9 @@ export default function App() {
 
     if (rAFRef.current !== null) return;
 
-    rAFRef.current = requestAnimationFrame(processPointerMove);
+    rAFRef.current = requestAnimationFrame(() => {
+      handlersRef.current.processPointerMove();
+    });
   };
 
   const handlePointerUp = (e: PointerEvent) => {
@@ -517,12 +535,11 @@ export default function App() {
     if (rAFRef.current !== null) {
       cancelAnimationFrame(rAFRef.current);
       rAFRef.current = null;
-      processPointerMove();
+      handlersRef.current.processPointerMove();
     }
     try {
-      const target = e.target as HTMLElement;
-      if (target && typeof target.hasPointerCapture === 'function' && target.hasPointerCapture(e.pointerId)) {
-        target.releasePointerCapture(e.pointerId);
+      if (boardRef.current?.hasPointerCapture(e.pointerId)) {
+        boardRef.current.releasePointerCapture(e.pointerId);
       }
     } catch (err) {}
 
@@ -575,6 +592,10 @@ export default function App() {
     }
 
     if (state.hasMoved || didMoveNow) {
+      if (!didMoveNow) {
+        setPieces(finalPieces);
+        piecesRef.current = finalPieces;
+      }
       setHistory(prev => [...prev, state.initialPieces]);
       setMoves(m => m + 1);
       
@@ -592,28 +613,69 @@ export default function App() {
     setDragState(null);
   };
 
+  const handlePointerCancel = (e: PointerEvent) => {
+    handlePointerUp(e);
+  };
+
   const handlersRef = useRef({
     handlePointerMove,
-    handlePointerUp
+    handlePointerUp,
+    handlePointerCancel,
+    processPointerMove
   });
 
   useEffect(() => {
-    handlersRef.current = { handlePointerMove, handlePointerUp };
+    handlersRef.current = { handlePointerMove, handlePointerUp, handlePointerCancel, processPointerMove };
   });
 
   useEffect(() => {
     const onMove = (e: PointerEvent) => handlersRef.current.handlePointerMove(e);
     const onUp = (e: PointerEvent) => handlersRef.current.handlePointerUp(e);
+    const onCancel = (e: PointerEvent) => handlersRef.current.handlePointerCancel(e);
     
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onUp);
+    window.addEventListener('pointercancel', onCancel);
 
     return () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onUp);
+      window.removeEventListener('pointercancel', onCancel);
     };
+  }, []);
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && dragRef.current) {
+        piecesRef.current = dragRef.current.initialPieces;
+        setPieces(dragRef.current.initialPieces);
+        dragRef.current = null;
+        setDragState(null);
+        if (rAFRef.current !== null) {
+          cancelAnimationFrame(rAFRef.current);
+          rAFRef.current = null;
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, []);
+
+  useEffect(() => {
+    const onBlur = () => {
+      if (dragRef.current) {
+        piecesRef.current = dragRef.current.initialPieces;
+        setPieces(dragRef.current.initialPieces);
+        dragRef.current = null;
+        setDragState(null);
+        if (rAFRef.current !== null) {
+          cancelAnimationFrame(rAFRef.current);
+          rAFRef.current = null;
+        }
+      }
+    };
+    window.addEventListener('blur', onBlur);
+    return () => window.removeEventListener('blur', onBlur);
   }, []);
 
   const handleUndo = () => {
@@ -647,6 +709,7 @@ export default function App() {
       </div>
 
       <div
+        ref={boardRef}
         className="board-container"
         style={{
           width: BOARD_W * cellSize + (BOARD_W - 1) * GAP + 2 * BOARD_PADDING,
@@ -680,8 +743,6 @@ export default function App() {
             GAP={GAP}
             BOARD_PADDING={BOARD_PADDING}
             onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
             staggerIndex={index}
             stagger={stagger}
             resetCount={resetCount}

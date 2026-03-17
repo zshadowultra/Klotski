@@ -1,5 +1,6 @@
 let audioCtx: AudioContext | null = null;
 const bufferCache = new Map<string, AudioBuffer>();
+
 let soundUrls: { move: string; select: string; win: string } | null = null;
 
 export function initAudioSync() {
@@ -26,19 +27,35 @@ export function initAudioSync() {
       });
     }
   }
-  if (audioCtx && audioCtx.state === "suspended") {
-    audioCtx.resume().catch(() => {});
-  }
 }
+
+let initPromise: Promise<void> | null = null;
 
 export async function initAudio(urls: { move: string; select: string; win: string }) {
   soundUrls = urls;
   initAudioSync();
   if (!audioCtx) return;
-  
-  // Pre-load sounds to avoid latency during gameplay
-  const soundNames = ['move', 'win', 'select'] as const;
-  await Promise.all(soundNames.map(name => getBuffer(name)));
+
+  if (audioCtx.state === 'closed') {
+    initPromise = null;
+    audioCtx = null;
+    initAudioSync();
+    if (!audioCtx) return;
+  }
+
+  if (!initPromise) {
+    initPromise = (async () => {
+      if (audioCtx!.state === 'suspended') {
+        await audioCtx!.resume().catch(() => {});
+      }
+      // Do NOT pre-decode here. Decoding requires the context to be running,
+      // which requires a user gesture. Lazy decode in getBuffer handles this.
+    })().catch((err) => {
+      initPromise = null; // Reset so next call can retry
+      throw err;
+    });
+  }
+  return initPromise;
 }
 
 async function getBuffer(soundName: 'move' | 'select' | 'win'): Promise<AudioBuffer> {
@@ -46,43 +63,43 @@ async function getBuffer(soundName: 'move' | 'select' | 'win'): Promise<AudioBuf
     return bufferCache.get(soundName)!;
   }
 
-  if (!soundUrls) {
-    throw new Error('Sound URLs not initialized');
+  if (!audioCtx) throw new Error('[soundManager] No AudioContext');
+
+  // CRITICAL: Must be running before decode — iOS Safari throws if suspended
+  if (audioCtx.state === 'suspended') {
+    await audioCtx.resume();
+  }
+  if (audioCtx.state !== 'running') {
+    throw new Error(`[soundManager] Context not running: ${audioCtx.state}`);
   }
 
+  if (!soundUrls) throw new Error('[soundManager] URLs not set');
+
   const url = soundUrls[soundName];
-  console.log(`Fetching sound: ${soundName} from URL: ${url}`);
-  
   const res = await fetch(url);
-  console.log(`Fetch response for ${soundName}:`, res.status, res.statusText, res.headers.get('content-type'));
-  
-  if (!res.ok) {
-    throw new Error(`Failed to fetch sound: ${url} (Status: ${res.status})`);
-  }
+
+  if (!res.ok) throw new Error(`[soundManager] HTTP ${res.status} for ${url}`);
+
+  const contentType = res.headers.get('content-type') ?? 'unknown';
   const arrayBuffer = await res.arrayBuffer();
-  console.log(`Fetched arrayBuffer for ${soundName}, length: ${arrayBuffer.byteLength}`);
-  
-  const audioBuffer = await new Promise<AudioBuffer>((resolve, reject) => {
-    try {
-      if (!audioCtx) {
-        reject(new Error('AudioContext not initialized'));
-        return;
-      }
-      const decodePromise = audioCtx.decodeAudioData(
-        arrayBuffer,
-        (buffer) => resolve(buffer),
-        (err) => reject(err)
-      );
-      if (decodePromise) {
-        decodePromise.then(resolve).catch(reject);
-      }
-    } catch (e) {
-      console.error(`Decoding error for ${soundName}:`, e);
-      reject(e);
+
+  if (arrayBuffer.byteLength === 0) {
+    throw new Error(`[soundManager] Empty buffer for ${soundName}`);
+  }
+
+  // Promise-ONLY form. Never mix callbacks and promise on the same decode call.
+  const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+  bufferCache.set(soundName, audioBuffer);
+
+  // After first successful decode, silently warm up remaining sounds in background.
+  // This runs fire-and-forget so it never blocks the caller.
+  (['move', 'select', 'win'] as const).forEach(name => {
+    if (!bufferCache.has(name)) {
+      getBuffer(name).catch(() => {});
     }
   });
 
-  bufferCache.set(soundName, audioBuffer);
   return audioBuffer;
 }
 
@@ -90,6 +107,14 @@ export async function playSound(soundName: 'move' | 'win' | 'select', volume: nu
   try {
     initAudioSync();
     if (!audioCtx) return;
+    
+    if (audioCtx.state === 'suspended') {
+      await audioCtx.resume();
+    }
+
+    if (audioCtx.state !== 'running') {
+      console.warn('[soundManager] AudioContext state:', audioCtx.state);
+    }
     
     const buffer = await getBuffer(soundName);
     
