@@ -15,7 +15,7 @@ export default defineConfig(({mode}) => {
       },
     },
     build: {
-      assetsInlineLimit: 0,
+      assetsInlineLimit: 100000,
     },
     server: {
       hmr: process.env.DISABLE_HMR !== 'true',
