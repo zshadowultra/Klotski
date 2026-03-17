@@ -6,14 +6,10 @@ import { motion, AnimatePresence, useMotionValue, useSpring } from 'motion/react
 import { Piece } from './types';
 import { LEVELS } from './levels';
 
-import moveSound from './sounds/move.ogg';
-import selectSound from './sounds/select.ogg';
-import winSound from './sounds/win.ogg';
-
 const SOUND_URLS = {
-  move:   moveSound,
-  select: selectSound,
-  win:    winSound,
+  move: '/sounds/move.ogg',
+  select: '/sounds/select.ogg',
+  win: '/sounds/win.ogg',
 } as const;
 
 const BOARD_W = 4;
