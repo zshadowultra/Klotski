@@ -7,7 +7,7 @@ import { Piece } from './types';
 import { LEVELS } from './levels';
 
 const SOUND_URLS = {
-  move: '/sounds/move.ogg',
+  move: 'https://storage.filebin.net/filebin/75d87dc60b7d29df838530af8c9e28205102234e07b5f1e849aa3d95c3922bd0?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=GK352fd2505074fc9dde7fd2cb%2F20260317%2Fhel1-dc4%2Fs3%2Faws4_request&X-Amz-Date=20260317T150609Z&X-Amz-Expires=900&X-Amz-SignedHeaders=host&response-cache-control=max-age%3D900&response-content-disposition=inline%3B%20filename%3D%22move.ogg%22&response-content-type=audio%2Fogg&x-id=GetObject&X-Amz-Signature=20bc0a2cf17a7d8079c6d6e75c1bfe69bbe1714a331f360fdf335dfbf63f66ac',
   select: '/sounds/select.ogg',
   win: '/sounds/win.ogg',
 } as const;
