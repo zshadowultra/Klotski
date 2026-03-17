@@ -7,9 +7,9 @@ import { Piece } from './types';
 import { LEVELS } from './levels';
 
 const SOUND_URLS = {
-  move:   `${import.meta.env.BASE_URL}sounds/move.mp3`,
-  select: `${import.meta.env.BASE_URL}sounds/select.mp3`,
-  win:    `${import.meta.env.BASE_URL}sounds/win.mp3`,
+  move:   `${import.meta.env.BASE_URL}sounds/move.ogg`,
+  select: `${import.meta.env.BASE_URL}sounds/select.ogg`,
+  win:    `${import.meta.env.BASE_URL}sounds/win.ogg`,
 } as const;
 
 const BOARD_W = 4;

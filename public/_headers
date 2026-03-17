@@ -1,4 +1,4 @@
 /sounds/*
-  Content-Type: audio/mpeg
+  Content-Type: audio/ogg
   Accept-Ranges: bytes
   Cache-Control: public, max-age=3600
