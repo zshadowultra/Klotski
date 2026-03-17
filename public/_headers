@@ -1,9 +1,4 @@
-/assets/*.mp3
+/sounds/*
   Content-Type: audio/mpeg
   Accept-Ranges: bytes
-  Cache-Control: public, max-age=31536000, immutable
-
-/assets/*.ogg
-  Content-Type: audio/ogg
-  Accept-Ranges: bytes
-  Cache-Control: public, max-age=31536000, immutable
+  Cache-Control: public, max-age=3600

@@ -6,9 +6,11 @@ import { motion, AnimatePresence, useMotionValue, useSpring } from 'motion/react
 import { Piece } from './types';
 import { LEVELS } from './levels';
 
-import moveSound from './assets/sounds/move.mp3?url';
-import selectSound from './assets/sounds/select.mp3?url';
-import winSound from './assets/sounds/win.mp3?url';
+const SOUND_URLS = {
+  move:   `${import.meta.env.BASE_URL}sounds/move.mp3`,
+  select: `${import.meta.env.BASE_URL}sounds/select.mp3`,
+  win:    `${import.meta.env.BASE_URL}sounds/win.mp3`,
+} as const;
 
 const BOARD_W = 4;
 const BOARD_H = 5;
@@ -98,9 +100,9 @@ const PieceComponent = React.memo(({
   const yValue = useMotionValue(baseRenderY);
 
   const springConfig = useMemo(() => ({
-    stiffness: 500,
-    damping: 35,
-    mass: 0.35
+    stiffness: 380,
+    damping: 38,
+    mass: 0.4
   }), []);
 
   const x = useSpring(xValue, springConfig);
@@ -131,8 +133,8 @@ const PieceComponent = React.memo(({
       }}
       transition={{ type: 'spring', stiffness: 500, damping: 40, delay: stagger ? 0.03 * staggerIndex : 0 }}
       style={{
-        x: isDragging ? xValue : x,
-        y: isDragging ? yValue : y,
+        x,
+        y,
         zIndex: isDragging ? 20 : 1,
         width: piece.w * cellSize + (piece.w - 1) * GAP,
         height: piece.h * cellSize + (piece.h - 1) * GAP,
@@ -340,7 +342,7 @@ export default function App() {
     
     if (!audioInitializedRef.current) {
       audioInitializedRef.current = true;
-      initAudio({ move: moveSound, select: selectSound, win: winSound }).catch(() => {});
+      initAudio(SOUND_URLS).catch(() => {});
     }
     
     boardRef.current?.setPointerCapture(e.pointerId);
@@ -609,13 +611,45 @@ export default function App() {
       haptics.trigger('soft');
     }
     
+    // Snap motion values to exact grid position before releasing drag.
+    // Without this, the spring starts from a slightly wrong position on handoff,
+    // causing the visible bounce when the piece hits a border at speed.
+    const endPiece = finalPieces.find(p => p.id === state.pieceId);
+    if (endPiece) {
+      const motionVals = pieceMotionValues.current.get(state.pieceId);
+      if (motionVals) {
+        motionVals.x.set(BOARD_PADDING + endPiece.x * unit);
+        motionVals.y.set(BOARD_PADDING + endPiece.y * unit);
+      }
+    }
     dragRef.current = null;
     setDragState(null);
   };
 
-  const handlePointerCancel = (e: PointerEvent) => {
-    handlePointerUp(e);
-  };
+const handlePointerCancel = (_e: PointerEvent) => {
+  if (!dragRef.current) return;
+  if (rAFRef.current !== null) {
+    cancelAnimationFrame(rAFRef.current);
+    rAFRef.current = null;
+  }
+  // Snap motion values back to the pre-drag grid position
+  const unit = cellSize + GAP;
+  const cancelPiece = dragRef.current.initialPieces.find(
+    p => p.id === dragRef.current!.pieceId
+  );
+  if (cancelPiece) {
+    const motionVals = pieceMotionValues.current.get(dragRef.current.pieceId);
+    if (motionVals) {
+      motionVals.x.set(BOARD_PADDING + cancelPiece.x * unit);
+      motionVals.y.set(BOARD_PADDING + cancelPiece.y * unit);
+    }
+  }
+  // Restore board to pre-drag state on cancel
+  piecesRef.current = dragRef.current.initialPieces;
+  setPieces(dragRef.current.initialPieces);
+  dragRef.current = null;
+  setDragState(null);
+};
 
   const handlersRef = useRef({
     handlePointerMove,
