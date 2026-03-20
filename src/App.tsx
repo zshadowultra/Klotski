@@ -100,9 +100,9 @@ const PieceComponent = React.memo(({
   const yValue = useMotionValue(baseRenderY);
 
   const springConfig = useMemo(() => ({
-    stiffness: 700,
-    damping: 45,
-    mass: 0.15
+    stiffness: 2000,
+    damping: 100,
+    mass: 0.05
   }), []);
 
   const x = useSpring(xValue, springConfig);
