@@ -229,17 +229,17 @@ body {
 }
 
 .piece.master {
-  background: linear-gradient(135deg, #222222 0%, #0a0a0a 100%);
-  border: 1px solid #333;
+  background: linear-gradient(135deg, #3a3a3a 0%, #1a1a1a 100%);
+  border: 1px solid #4a4a4a;
   box-shadow: 
-    0 12px 24px rgba(0,0,0,0.3), 
-    inset 0 2px 4px rgba(255,255,255,0.15),
-    inset 0 -2px 4px rgba(0,0,0,0.5);
+    0 12px 24px rgba(0,0,0,0.4), 
+    inset 0 2px 4px rgba(255,255,255,0.25),
+    inset 0 -2px 4px rgba(0,0,0,0.8);
   color: white;
 }
 
 .piece.master::before {
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
 }
 
 .piece.master::after {
@@ -278,8 +278,8 @@ body {
 }
 
 .piece.master .piece-inner {
-  background: rgba(255,255,255,0.04);
-  box-shadow: inset 0 2px 6px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.08);
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.2);
   width: 56px;
   height: 56px;
   border-radius: 12px;
