@@ -2,8 +2,8 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
-import { LEVELS } from "./src/levels.js";
-import { isSolvable } from "./src/solver.js";
+import { LEVELS } from "./src/levels.ts";
+import { isSolvable } from "./src/solver.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

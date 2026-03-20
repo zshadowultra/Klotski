@@ -1,4 +1,4 @@
-import { Piece } from './types.js';
+import type { Piece } from './types.ts';
 
 const BOARD_W = 4;
 const BOARD_H = 5;

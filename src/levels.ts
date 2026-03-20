@@ -1,5 +1,5 @@
 // This file is auto-generated to only include solvable levels
-import { Piece } from './types';
+import type { Piece } from './types.ts';
 
 // Raw level data: [x, y, w, h, type]
 export const RAW_LEVELS = [

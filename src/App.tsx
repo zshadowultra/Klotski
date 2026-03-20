@@ -812,13 +812,14 @@ const handlePointerCancel = (_e: PointerEvent) => {
           <AnimatePresence>
             {isSkipRevealed && (
               <motion.button 
-                initial={{ width: 0, opacity: 0, x: -10 }}
-                animate={{ width: 'auto', opacity: 1, x: 0 }}
-                exit={{ width: 0, opacity: 0, x: -10 }}
+                initial={{ width: 0, opacity: 0, y: 12, filter: "blur(4px)" }}
+                animate={{ width: 'auto', opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={{ width: 0, opacity: 0, y: -12, filter: "blur(4px)" }}
                 transition={{ 
-                  width: { duration: 0.6, ease: [0.2, 0.8, 0.2, 1] },
-                  opacity: { duration: 0.4, delay: 0.2 },
-                  x: { duration: 0.4, delay: 0.2 }
+                  type: "spring",
+                  stiffness: 100,
+                  damping: 20,
+                  mass: 0.5,
                 }}
                 onClick={handleNextLevel} 
                 disabled={currentLevel === LEVELS.length - 1} 
@@ -864,9 +865,9 @@ const handlePointerCancel = (_e: PointerEvent) => {
                   className="btn" 
                   onClick={handleNextLevel} 
                   style={{ margin: '0 auto', width: '100%', justifyContent: 'center' }}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3, type: 'spring', stiffness: 300, damping: 20 }}
+                  initial={{ opacity: 0, y: 12, filter: "blur(4px)" }}
+                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                  transition={{ delay: 0.3, type: 'spring', stiffness: 100, damping: 20, mass: 0.5 }}
                 >
                   <Check size={18} />
                   Next Level
@@ -876,9 +877,9 @@ const handlePointerCancel = (_e: PointerEvent) => {
                   className="btn" 
                   onClick={handleReset} 
                   style={{ margin: '0 auto', width: '100%', justifyContent: 'center' }}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3, type: 'spring', stiffness: 300, damping: 20 }}
+                  initial={{ opacity: 0, y: 12, filter: "blur(4px)" }}
+                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                  transition={{ delay: 0.3, type: 'spring', stiffness: 100, damping: 20, mass: 0.5 }}
                 >
                   <RotateCcw size={18} />
                   Play Again
