@@ -99,7 +99,7 @@ async function getBuffer(soundName: 'move' | 'select' | 'win'): Promise<AudioBuf
       bufferCache.set(soundName, audioBuffer);
       return audioBuffer;
     } catch (err) {
-      console.warn(`[soundManager] Failed to load or decode ${soundName}.mp3, falling back to synthetic sound.`, err);
+      console.warn(`[soundManager] Failed to load or decode ${soundName} sound, falling back to synthetic sound.`, err);
       const synthBuffer = createSyntheticSound(audioCtx, soundName);
       bufferCache.set(soundName, synthBuffer);
       return synthBuffer;
