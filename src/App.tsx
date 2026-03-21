@@ -762,7 +762,7 @@ const handlePointerCancel = (_e: PointerEvent) => {
           style={{
             top: BOARD_PADDING, left: BOARD_PADDING, right: BOARD_PADDING, bottom: BOARD_PADDING,
             backgroundSize: `${cellSize + GAP}px ${cellSize + GAP}px`,
-            backgroundPosition: `0px 0px`
+            backgroundPosition: `calc(-${GAP / 2}px) calc(-${GAP / 2}px)`
           }}
         />
         <div
