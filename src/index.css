@@ -11,7 +11,7 @@
   --shadow-soft: 0 32px 64px rgba(0,0,0,0.1), 0 8px 16px rgba(0,0,0,0.04);
   --shadow-press: inset 0 1px 0 rgba(255,255,255,0.9), inset 0 -1px 0 rgba(10,10,10,0.05);
   --cell-size: 70px;
-  --piece-radius: calc(var(--cell-size) * 0.35);
+  --piece-radius: 16px;
   --radius: calc(var(--piece-radius) + 14px);
   --grid-line: rgba(10,10,10,0.05);
 }

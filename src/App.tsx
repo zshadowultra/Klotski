@@ -5,6 +5,7 @@ import { WebHaptics } from 'web-haptics';
 import { motion, AnimatePresence, useMotionValue, animate } from 'motion/react';
 import { Piece } from './types';
 import { LEVELS } from './levels';
+import { CONFIG } from './config';
 
 import moveSoundUrl from '/sounds/move.mp3?url';
 import selectSoundUrl from '/sounds/select.mp3?url';
@@ -753,7 +754,8 @@ const handlePointerCancel = (_e: PointerEvent) => {
           width: BOARD_W * cellSize + (BOARD_W - 1) * GAP + 2 * BOARD_PADDING,
           height: BOARD_H * cellSize + (BOARD_H - 1) * GAP + 2 * BOARD_PADDING,
           touchAction: 'none',
-          '--cell-size': `${cellSize}px`
+          '--cell-size': `${cellSize}px`,
+          '--piece-radius': `${CONFIG.pieceRadius}px`
         } as React.CSSProperties}
         onContextMenu={(e) => e.preventDefault()}
       >
