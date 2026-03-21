@@ -7,20 +7,15 @@ import { Piece } from './types';
 import { LEVELS } from './levels';
 import { CONFIG } from './config';
 
-import moveSoundUrl from './assets/sounds/move.mp3';
-import selectSoundUrl from './assets/sounds/select.mp3';
-import winSoundUrl from './assets/sounds/win.mp3';
-
+// Use static URLs with a cache-busting query parameter to ensure new uploads are fetched
 const SOUND_URLS = {
-  move: moveSoundUrl,
-  select: selectSoundUrl,
-  win: winSoundUrl,
+  move: '/sounds/move.mp3?v=2',
+  select: '/sounds/select.mp3?v=2',
+  win: '/sounds/win.mp3?v=2',
 } as const;
 
 const BOARD_W = 4;
 const BOARD_H = 5;
-const GAP = 6;
-const BOARD_PADDING = 14;
 
 function getBounds(
   piece: Piece,
@@ -229,6 +224,8 @@ export default function App() {
   const [isWon, setIsWon] = useState(false);
   const [resetCount, setResetCount] = useState(0);
   const [cellSize, setCellSize] = useState(70);
+  const GAP = (6 / 70) * cellSize;
+  const BOARD_PADDING = (14 / 70) * cellSize;
   const [dragState, setDragState] = useState<{ pieceId: string, x: number, y: number } | null>(null);
   
   const [moveClicks, setMoveClicks] = useState<number[]>([]);
@@ -317,8 +314,8 @@ export default function App() {
       const maxW = Math.min(window.innerWidth - paddingX, 500);
       const maxH = Math.min(window.innerHeight - headerHeight - paddingY, 700);
       
-      const sizeW = (maxW - (BOARD_W - 1) * GAP - 2 * BOARD_PADDING) / BOARD_W;
-      const sizeH = (maxH - (BOARD_H - 1) * GAP - 2 * BOARD_PADDING) / BOARD_H;
+      const sizeW = (maxW * 70) / 326;
+      const sizeH = (maxH * 70) / 402;
       
       setCellSize(Math.max(35, Math.min(sizeW, sizeH)));
     };
