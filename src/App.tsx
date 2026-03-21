@@ -7,9 +7,9 @@ import { Piece } from './types';
 import { LEVELS } from './levels';
 import { CONFIG } from './config';
 
-import moveSoundUrl from '/sounds/move.mp3?url';
-import selectSoundUrl from '/sounds/select.mp3?url';
-import winSoundUrl from '/sounds/win.mp3?url';
+import moveSoundUrl from './assets/sounds/move.mp3';
+import selectSoundUrl from './assets/sounds/select.mp3';
+import winSoundUrl from './assets/sounds/win.mp3';
 
 const SOUND_URLS = {
   move: moveSoundUrl,
@@ -755,7 +755,8 @@ const handlePointerCancel = (_e: PointerEvent) => {
           height: BOARD_H * cellSize + (BOARD_H - 1) * GAP + 2 * BOARD_PADDING,
           touchAction: 'none',
           '--cell-size': `${cellSize}px`,
-          '--piece-radius': `${CONFIG.pieceRadius}px`
+          '--piece-radius': `${(CONFIG.pieceRadius / 70) * cellSize}px`,
+          '--radius': `calc(var(--piece-radius) + ${BOARD_PADDING}px)`
         } as React.CSSProperties}
         onContextMenu={(e) => e.preventDefault()}
       >
