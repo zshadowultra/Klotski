@@ -2,13 +2,13 @@ import { playSound, initAudioSync, initAudio } from './soundManager';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { RotateCcw, Undo2, Check, Moon, Sun, ChevronLeft, ChevronRight } from 'lucide-react';
 import { WebHaptics } from 'web-haptics';
-import { motion, AnimatePresence, useMotionValue, useSpring } from 'motion/react';
+import { motion, AnimatePresence, useMotionValue, animate } from 'motion/react';
 import { Piece } from './types';
 import { LEVELS } from './levels';
 
-import moveSoundUrl from '/sounds/move.ogg?url';
-import selectSoundUrl from '/sounds/select.ogg?url';
-import winSoundUrl from '/sounds/win.ogg?url';
+import moveSoundUrl from '/sounds/move.mp3?url';
+import selectSoundUrl from '/sounds/select.mp3?url';
+import winSoundUrl from '/sounds/win.mp3?url';
 
 const SOUND_URLS = {
   move: moveSoundUrl,
@@ -103,15 +103,6 @@ const PieceComponent = React.memo(({
   const xValue = useMotionValue(baseRenderX);
   const yValue = useMotionValue(baseRenderY);
 
-  const springConfig = useMemo(() => ({
-    stiffness: 2000,
-    damping: 100,
-    mass: 0.05
-  }), []);
-
-  const x = useSpring(xValue, springConfig);
-  const y = useSpring(yValue, springConfig);
-
   useEffect(() => {
     pieceMotionValues.current.set(piece.id, { x: xValue, y: yValue });
     return () => {
@@ -121,8 +112,8 @@ const PieceComponent = React.memo(({
 
   useEffect(() => {
     if (!isDragging) {
-      xValue.set(baseRenderX);
-      yValue.set(baseRenderY);
+      animate(xValue, baseRenderX, { type: 'spring', stiffness: 2000, damping: 100, mass: 0.05 });
+      animate(yValue, baseRenderY, { type: 'spring', stiffness: 2000, damping: 100, mass: 0.05 });
     }
   }, [isDragging, baseRenderX, baseRenderY, xValue, yValue]);
 
@@ -137,8 +128,8 @@ const PieceComponent = React.memo(({
       }}
       transition={{ type: 'spring', stiffness: 500, damping: 40, delay: stagger ? 0.03 * staggerIndex : 0 }}
       style={{
-        x,
-        y,
+        x: xValue,
+        y: yValue,
         zIndex: isDragging ? 20 : 1,
         width: piece.w * cellSize + (piece.w - 1) * GAP,
         height: piece.h * cellSize + (piece.h - 1) * GAP,
@@ -516,10 +507,19 @@ export default function App() {
       }
     }
 
+    const applyStickiness = (val: number) => {
+      const abs = Math.abs(val);
+      if (abs < 6) return 0;
+      if (abs < 32) {
+        return Math.sign(val) * (abs - 6) * (32 / 26);
+      }
+      return val;
+    };
+
     const motionValues = pieceMotionValues.current.get(piece.id);
     if (motionValues) {
-      motionValues.x.set(BOARD_PADDING + piece.x * unit + offsetX);
-      motionValues.y.set(BOARD_PADDING + piece.y * unit + offsetY);
+      motionValues.x.set(BOARD_PADDING + piece.x * unit + applyStickiness(offsetX));
+      motionValues.y.set(BOARD_PADDING + piece.y * unit + applyStickiness(offsetY));
     }
     rAFRef.current = null;
   };
@@ -752,8 +752,9 @@ const handlePointerCancel = (_e: PointerEvent) => {
         style={{
           width: BOARD_W * cellSize + (BOARD_W - 1) * GAP + 2 * BOARD_PADDING,
           height: BOARD_H * cellSize + (BOARD_H - 1) * GAP + 2 * BOARD_PADDING,
-          touchAction: 'none'
-        }}
+          touchAction: 'none',
+          '--cell-size': `${cellSize}px`
+        } as React.CSSProperties}
         onContextMenu={(e) => e.preventDefault()}
       >
         <div

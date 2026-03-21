@@ -24,7 +24,7 @@ async function startServer() {
   }
 
   const app = express();
-  const PORT = process.env.PORT || 3000;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
   // API routes FIRST
   app.get("/api/health", (req, res) => {
@@ -40,12 +40,12 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    // Express static natively serves .ogg files, but let's be explicit
-    express.static.mime.define({'audio/ogg': ['ogg']});
+    // Express static natively serves .mp3 files, but let's be explicit
+    express.static.mime.define({'audio/mpeg': ['mp3']});
     app.use(express.static(distPath, {
       setHeaders: (res, path) => {
-        if (path.endsWith('.ogg')) {
-          res.setHeader('Content-Type', 'audio/ogg');
+        if (path.endsWith('.mp3')) {
+          res.setHeader('Content-Type', 'audio/mpeg');
         }
       }
     }));

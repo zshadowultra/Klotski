@@ -10,12 +10,16 @@
   --accent: #ea3323;
   --shadow-soft: 0 32px 64px rgba(0,0,0,0.1), 0 8px 16px rgba(0,0,0,0.04);
   --shadow-press: inset 0 1px 0 rgba(255,255,255,0.9), inset 0 -1px 0 rgba(10,10,10,0.05);
-  --radius: 32px;
-  --piece-radius: 18px;
+  --cell-size: 70px;
+  --piece-radius: calc(var(--cell-size) * 0.35);
+  --radius: calc(var(--piece-radius) + 14px);
   --grid-line: rgba(10,10,10,0.05);
 }
 
-* { box-sizing: border-box; }
+* { 
+  box-sizing: border-box; 
+  -webkit-tap-highlight-color: transparent;
+}
 html, body {
   margin: 0;
   padding: 0;
@@ -26,6 +30,8 @@ html, body {
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
+  overscroll-behavior: none;
+  -webkit-touch-callout: none;
 }
 
 body {
@@ -260,28 +266,28 @@ body {
 }
 
 .piece.s .piece-inner {
-  width: 35%;
-  height: 35%;
+  width: 45%;
+  height: 45%;
   border-radius: 50%;
 }
 
 .piece.v .piece-inner {
-  width: 30%;
-  height: 35%;
+  width: 40%;
+  height: 45%;
   border-radius: 6px;
 }
 
 .piece.h .piece-inner {
-  width: 35%;
-  height: 30%;
+  width: 45%;
+  height: 40%;
   border-radius: 6px;
 }
 
 .piece.master .piece-inner {
   background: rgba(255,255,255,0.08);
   box-shadow: inset 0 2px 6px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.2);
-  width: 40%;
-  height: 40%;
+  width: 50%;
+  height: 50%;
   border-radius: 12px;
 }
 
