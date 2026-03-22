@@ -40,8 +40,6 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    // Express static natively serves .mp3 files, but let's be explicit
-    express.static.mime.define({'audio/mpeg': ['mp3']});
     app.use(express.static(distPath, {
       setHeaders: (res, path) => {
         if (path.endsWith('.mp3')) {

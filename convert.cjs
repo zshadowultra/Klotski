@@ -9,7 +9,7 @@ for (const file of files) {
   const output = `public/sounds/${file}.mp3`;
   console.log(`Converting ${input} to ${output}...`);
   try {
-    execSync(`${ffmpeg} -i ${input} -y ${output}`, { stdio: 'inherit' });
+    execSync(`"${ffmpeg}" -i "${input}" -y "${output}"`, { stdio: 'inherit' });
     console.log(`Done converting ${file}`);
   } catch (err) {
     console.error(`Failed to convert ${file}`, err);
