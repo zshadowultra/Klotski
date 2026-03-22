@@ -409,7 +409,9 @@ body {
 
 /* Dark Mode Overrides */
 body.dark .level-selector {
-  background: rgba(0,0,0,0.2);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05);
 }
 
 .overlay {
@@ -511,15 +513,15 @@ body.dark {
   
   background-image: 
     url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E"),
-    radial-gradient(circle at 15% 15%, rgba(255,255,255,0.04), transparent 60%),
-    radial-gradient(circle at 85% 85%, rgba(0,0,0,0.5), transparent 60%),
-    linear-gradient(180deg, #181818 0%, #0a0a0a 100%);
+    radial-gradient(circle at 15% 15%, rgba(255,255,255,0.08), transparent 45%),
+    radial-gradient(circle at 85% 85%, rgba(0,0,0,0.8), transparent 45%),
+    linear-gradient(180deg, #2a2a28 0%, #1a1a18 100%);
 }
 
 body.dark .stats {
-  background: rgba(30,30,30,0.5);
-  border-color: rgba(255,255,255,0.08);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.06), 0 0 0 1px var(--line);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1), 0 0 0 1px rgba(0,0,0,0.5);
 }
 
 body.dark .board-container {
@@ -572,14 +574,14 @@ body.dark .piece.master .piece-inner {
 }
 
 body.dark .btn {
-  background: rgba(30,30,30,0.7);
+  background: rgba(255,255,255,0.04);
   border-color: rgba(255,255,255,0.08);
-  box-shadow: 0 12px 32px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.06);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
 }
 
 body.dark .btn:hover:not(:disabled) {
-  background: rgba(50,50,50,0.9);
-  box-shadow: 0 16px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.08);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
 }
 
 body.dark .overlay {
