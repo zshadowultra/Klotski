@@ -2,7 +2,7 @@ import { playSound, initAudioSync, initAudio } from './soundManager';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { RotateCcw, Undo2, Check, Moon, Sun, ChevronLeft, ChevronRight } from 'lucide-react';
 import { WebHaptics } from 'web-haptics';
-import { motion, AnimatePresence, useMotionValue, animate } from 'motion/react';
+import { motion, AnimatePresence, useMotionValue, animate, useSpring } from 'motion/react';
 import { Piece } from './types';
 import { LEVELS } from './levels';
 import { CONFIG } from './config';
@@ -98,6 +98,21 @@ const PieceComponent = React.memo(({
 
   const xValue = useMotionValue(baseRenderX);
   const yValue = useMotionValue(baseRenderY);
+  
+  const [pointerType, setPointerType] = useState<'mouse' | 'touch' | 'pen'>('touch');
+
+  // Dynamic physics based on input device.
+  // Mouse: Zero latency, infinite stiffness (instant 1:1 tracking).
+  // Touch: Critically damped spring to smooth out finger occlusion and digitizer noise.
+  const physics = useMemo(() => {
+    if (pointerType === 'mouse') {
+      return { stiffness: 10000, damping: 100, mass: 0.01 }; // Near-instantaneous
+    }
+    return { stiffness: 3000, damping: 28, mass: 0.05 }; // Smooth touch tracking
+  }, [pointerType]);
+
+  const xSpring = useSpring(xValue, physics);
+  const ySpring = useSpring(yValue, physics);
 
   useEffect(() => {
     pieceMotionValues.current.set(piece.id, { x: xValue, y: yValue });
@@ -108,8 +123,8 @@ const PieceComponent = React.memo(({
 
   useEffect(() => {
     if (!isDragging) {
-      animate(xValue, baseRenderX, { type: 'spring', stiffness: 2000, damping: 100, mass: 0.05 });
-      animate(yValue, baseRenderY, { type: 'spring', stiffness: 2000, damping: 100, mass: 0.05 });
+      xValue.set(baseRenderX);
+      yValue.set(baseRenderY);
     }
   }, [isDragging, baseRenderX, baseRenderY, xValue, yValue]);
 
@@ -124,15 +139,18 @@ const PieceComponent = React.memo(({
       }}
       transition={{ type: 'spring', stiffness: 500, damping: 40, delay: stagger ? 0.03 * staggerIndex : 0 }}
       style={{
-        x: xValue,
-        y: yValue,
+        x: xSpring,
+        y: ySpring,
         zIndex: isDragging ? 20 : 1,
         width: piece.w * cellSize + (piece.w - 1) * GAP,
         height: piece.h * cellSize + (piece.h - 1) * GAP,
         touchAction: 'none',
         userSelect: 'none'
       }}
-      onPointerDown={(e) => onPointerDown(e, piece)}
+      onPointerDown={(e) => {
+        setPointerType(e.pointerType as 'mouse' | 'touch' | 'pen');
+        onPointerDown(e, piece);
+      }}
       onContextMenu={(e) => e.preventDefault()}
       onDragStart={(e) => e.preventDefault()}
     >
@@ -516,8 +534,21 @@ export default function App() {
 
     const motionValues = pieceMotionValues.current.get(piece.id);
     if (motionValues) {
-      motionValues.x.set(BOARD_PADDING + piece.x * unit + applyStickiness(offsetX));
-      motionValues.y.set(BOARD_PADDING + piece.y * unit + applyStickiness(offsetY));
+      let renderDx = offsetX;
+      let renderDy = offsetY;
+      
+      // Visual constraint: strictly orthogonal rendering to prevent diagonal bleed.
+      // The useSpring in PieceComponent will smooth out the transitions between axes.
+      if (Math.abs(renderDx) > 0 && Math.abs(renderDy) > 0) {
+        if (Math.abs(renderDx) >= Math.abs(renderDy)) {
+          renderDy = 0;
+        } else {
+          renderDx = 0;
+        }
+      }
+
+      motionValues.x.set(BOARD_PADDING + piece.x * unit + applyStickiness(renderDx));
+      motionValues.y.set(BOARD_PADDING + piece.y * unit + applyStickiness(renderDy));
     }
     rAFRef.current = null;
   };
