@@ -1,6 +1,6 @@
 import { playSound, initAudioSync, initAudio, getAudioTime } from './soundManager';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { RotateCcw, Undo2, Check, Moon, Sun, ChevronLeft, ChevronRight } from 'lucide-react';
+import { RotateCcw, Undo2, Check, Moon, Sun, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
 import { WebHaptics } from 'web-haptics';
 import { motion, AnimatePresence, useMotionValue, animate, useSpring } from 'motion/react';
 import { Piece } from './types';
@@ -148,7 +148,7 @@ const PieceComponent = React.memo(({
         height: piece.h * cellSize + (piece.h - 1) * GAP,
         touchAction: 'none',
         userSelect: 'none',
-        willChange: isDragging ? 'transform' : 'auto'
+        willChange: 'transform'
       }}
       onPointerDown={(e) => {
         setPointerType(e.pointerType as 'mouse' | 'touch' | 'pen');
@@ -174,7 +174,100 @@ const PieceComponent = React.memo(({
   );
 });
 
+function SettingsMenu({ onClose }: { onClose: () => void }) {
+  const [haptics, setHaptics] = useState(localStorage.getItem('klotski_haptics') !== 'false');
+  const [sound, setSound] = useState(localStorage.getItem('klotski_sound') !== 'false');
+  const [beta, setBeta] = useState(localStorage.getItem('klotski_beta') === 'true');
+
+  const toggleHaptics = () => {
+    const newVal = !haptics;
+    setHaptics(newVal);
+    localStorage.setItem('klotski_haptics', newVal.toString());
+  };
+
+  const toggleSound = () => {
+    const newVal = !sound;
+    setSound(newVal);
+    localStorage.setItem('klotski_sound', newVal.toString());
+  };
+
+  const toggleBeta = () => {
+    const newVal = !beta;
+    setBeta(newVal);
+    localStorage.setItem('klotski_beta', newVal.toString());
+  };
+
+  return (
+    <div className="min-h-screen bg-[#f0f0ed] dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 p-6 flex flex-col items-center">
+      <div className="w-full max-w-md">
+        <div className="flex items-center mb-8">
+          <button onClick={onClose} className="p-2 -ml-2 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-900 transition-colors">
+            <ArrowLeft size={24} />
+          </button>
+          <h1 className="text-2xl font-bold ml-4">Debug Settings</h1>
+        </div>
+
+        <div className="space-y-6">
+          <div className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 rounded-2xl shadow-sm">
+            <div>
+              <h3 className="font-semibold text-lg">Haptics</h3>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">Vibration feedback on moves</p>
+            </div>
+            <button 
+              onClick={toggleHaptics}
+              className={`w-12 h-6 rounded-full transition-colors relative ${haptics ? 'bg-blue-500' : 'bg-zinc-300 dark:bg-zinc-700'}`}
+            >
+              <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${haptics ? 'translate-x-6' : 'translate-x-0'}`} />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 rounded-2xl shadow-sm">
+            <div>
+              <h3 className="font-semibold text-lg">Sound</h3>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">Audio effects for interactions</p>
+            </div>
+            <button 
+              onClick={toggleSound}
+              className={`w-12 h-6 rounded-full transition-colors relative ${sound ? 'bg-blue-500' : 'bg-zinc-300 dark:bg-zinc-700'}`}
+            >
+              <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${sound ? 'translate-x-6' : 'translate-x-0'}`} />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 rounded-2xl shadow-sm">
+            <div>
+              <h3 className="font-semibold text-lg">Beta Features</h3>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">Enable experimental features</p>
+            </div>
+            <button 
+              onClick={toggleBeta}
+              className={`w-12 h-6 rounded-full transition-colors relative ${beta ? 'bg-blue-500' : 'bg-zinc-300 dark:bg-zinc-700'}`}
+            >
+              <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${beta ? 'translate-x-6' : 'translate-x-0'}`} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
+  const [currentRoute, setCurrentRoute] = useState(window.location.pathname);
+
+  useEffect(() => {
+    const handlePopState = () => setCurrentRoute(window.location.pathname);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  if (currentRoute === '/settings' || currentRoute === '/setting') {
+    return <SettingsMenu onClose={() => {
+      window.history.pushState({}, '', '/');
+      setCurrentRoute('/');
+    }} />;
+  }
+
   const [userTheme, setUserTheme] = useState<'light' | 'dark' | null>(() => {
     return localStorage.getItem('klotski_theme') as 'light' | 'dark' | null;
   });
@@ -224,7 +317,7 @@ export default function App() {
 
   const handlePrevLevel = () => {
     if (currentLevel > 0) {
-      haptics.trigger('medium');
+      triggerHaptic('medium');
       playSelect();
       const next = currentLevel - 1;
       setCurrentLevel(next);
@@ -234,7 +327,7 @@ export default function App() {
 
   const handleNextLevel = () => {
     if (currentLevel < LEVELS.length - 1) {
-      haptics.trigger('medium');
+      triggerHaptic('medium');
       playSelect();
       const next = currentLevel + 1;
       setCurrentLevel(next);
@@ -259,7 +352,7 @@ export default function App() {
     setMoveClicks(recentClicks);
     if (recentClicks.length >= 15 && !isSkipRevealed) {
       setIsSkipRevealed(true);
-      haptics.trigger('success');
+      triggerHaptic('success');
     }
   };
   const dragRef = useRef<{
@@ -280,18 +373,24 @@ export default function App() {
   const [stagger, setStagger] = useState(true);
   
   const haptics = useMemo(() => new WebHaptics(), []);
+  const triggerHaptic = useCallback((type: 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' | 'selection' | 'soft' | 'rigid') => {
+    if (localStorage.getItem('klotski_haptics') !== 'false') {
+      haptics.trigger(type as any);
+    }
+  }, [haptics]);
 
   const lastSoundTime = useRef<{ select: number; move: number; win: number }>({ select: 0, move: 0, win: 0 });
 
-  const playSelect = useCallback(() => {
+  const playSelect = useCallback((pieceArea = 1) => {
     const now = Date.now();
     if (now - lastSoundTime.current.select > 100) {
-      playSound('select').catch(() => {});
+      const baseRate = 1.4 - (pieceArea * 0.15);
+      playSound('select', 1.0, undefined, baseRate).catch(() => {});
       lastSoundTime.current.select = now;
     }
   }, []);
 
-  const playMove = useCallback((count = 1) => {
+  const playMove = useCallback((count = 1, pieceArea = 1) => {
     const now = Date.now();
     
     // Prevent overlapping sequences if a multi-step sound is still playing
@@ -299,10 +398,16 @@ export default function App() {
       return;
     }
     
+    // Calculate base playback rate based on piece size
+    // Master piece (2x2 = 4): lowest pitch, e.g., 0.8
+    // 1x2 or 2x1 (2): medium pitch, e.g., 1.1
+    // 1x1 (1): highest pitch, e.g., 1.25
+    const baseRate = 1.4 - (pieceArea * 0.15);
+
     if (count === 1) {
       // Standard single-step throttle
       if (now - lastSoundTime.current.move > 60) {
-        playSound('move', 0.3).catch(() => {});
+        playSound('move', 0.3, undefined, baseRate).catch(() => {});
         lastSoundTime.current.move = now;
       }
     } else {
@@ -314,14 +419,14 @@ export default function App() {
       if (startTime > 0) {
         for (let i = 0; i < safeCount; i++) {
           // Increase pitch slightly for each step to make it sound like a slide
-          const rate = 1.0 + (i * 0.05);
+          const rate = baseRate + (i * 0.05);
           playSound('move', 0.2, startTime + i * 0.05, rate).catch(() => {});
         }
       } else {
         // Fallback to setTimeout if audio context isn't ready
         for (let i = 0; i < safeCount; i++) {
           setTimeout(() => {
-            playSound('move', 0.2).catch(() => {});
+            playSound('move', 0.2, undefined, baseRate + (i * 0.05)).catch(() => {});
           }, i * 50);
         }
       }
@@ -408,8 +513,8 @@ export default function App() {
       y: BOARD_PADDING + piece.y * unit
     });
 
-    haptics.trigger('selection');
-    playSelect();
+    triggerHaptic('selection');
+    playSelect(piece.w * piece.h);
   }, [cellSize, isWon, haptics, playSelect]);
 
   const rAFRef = useRef<number | null>(null);
@@ -532,13 +637,13 @@ export default function App() {
 
       if (stepsCount > 0) {
         piecesRef.current = newPieces;
-        haptics.trigger('light');
-        playMove(stepsCount);
+        triggerHaptic('light');
+        playMove(stepsCount, piece.w * piece.h);
         const master = newPieces.find(p => p.id === 'master')!;
         if (master.x === 1 && master.y === 3) {
           setPieces(newPieces);
           setIsWon(true);
-          haptics.trigger('success');
+          triggerHaptic('success');
           playWin();
           dragRef.current = null;
           setDragState(null);
@@ -637,8 +742,8 @@ export default function App() {
       setPieces(finalPieces);
       piecesRef.current = finalPieces;
       didMoveNow = true;
-      haptics.trigger('light');
-      playMove();
+      triggerHaptic('light');
+      playMove(1, piece.w * piece.h);
     }
 
     if (state.hasMoved || didMoveNow) {
@@ -652,11 +757,11 @@ export default function App() {
       const master = finalPieces.find(p => p.id === 'master')!;
       if (master.x === 1 && master.y === 3) {
         setIsWon(true);
-        haptics.trigger('success');
+        triggerHaptic('success');
         playWin();
       }
     } else {
-      haptics.trigger('soft');
+      triggerHaptic('soft');
     }
     
     // Snap motion values to exact grid position before releasing drag.
@@ -762,7 +867,7 @@ const handlePointerCancel = (_e: PointerEvent) => {
 
   const handleUndo = () => {
     if (history.length === 0 || isWon || dragRef.current) return;
-    haptics.trigger('light');
+    triggerHaptic('light');
     playSelect();
     const prev = history[history.length - 1];
     setPieces(prev);
@@ -773,7 +878,7 @@ const handlePointerCancel = (_e: PointerEvent) => {
 
   const handleReset = () => {
     if (dragRef.current) return;
-    haptics.trigger('medium');
+    triggerHaptic('medium');
     playSelect();
     loadLevel(currentLevel);
   };

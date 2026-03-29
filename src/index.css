@@ -129,12 +129,11 @@ body {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  background: rgba(255,255,255,0.6);
+  background: rgba(255,255,255,0.85);
   padding: 12px 20px;
   border-radius: 20px;
   border: 1px solid rgba(255,255,255,0.8);
   box-shadow: 0 8px 24px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,1), 0 0 0 1px var(--line);
-  backdrop-filter: blur(12px);
 }
 
 .stat-label {
@@ -207,7 +206,6 @@ body {
   align-items: center;
   user-select: none;
   cursor: grab;
-  transition: box-shadow 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
   will-change: transform;
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
@@ -305,7 +303,7 @@ body {
   padding: 16px 32px;
   border-radius: 999px;
   border: 1px solid var(--line-strong);
-  background: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.9);
   box-shadow: 0 12px 32px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.9);
   font-family: 'Inter', sans-serif;
   font-weight: 700;
@@ -313,7 +311,6 @@ body {
   color: var(--ink);
   cursor: pointer;
   transition: transform 0.25s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.25s cubic-bezier(0.2, 0.7, 0.2, 1), background-color 0.25s cubic-bezier(0.2, 0.7, 0.2, 1);
-  backdrop-filter: blur(4px);
 }
 
 .btn:hover:not(:disabled) {
@@ -365,11 +362,10 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(255,255,255,0.4);
+  background: rgba(255,255,255,0.85);
   padding: 4px 12px;
   border-radius: 999px;
   border: 1px solid var(--line);
-  backdrop-filter: blur(8px);
 }
 
 .level-nav-btn {
@@ -408,7 +404,7 @@ body {
 
 /* Dark Mode Overrides */
 body.dark .level-selector {
-  background: rgba(255,255,255,0.04);
+  background: rgba(255,255,255,0.08);
   border: 1px solid rgba(255,255,255,0.08);
   box-shadow: 0 4px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05);
 }
@@ -416,8 +412,7 @@ body.dark .level-selector {
 .overlay {
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(228, 228, 225, 0.6);
-  backdrop-filter: blur(8px);
+  background: rgba(228, 228, 225, 0.85);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -518,7 +513,7 @@ body.dark {
 }
 
 body.dark .stats {
-  background: rgba(255,255,255,0.04);
+  background: rgba(255,255,255,0.08);
   border: 1px solid rgba(255,255,255,0.08);
   box-shadow: 0 8px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1), 0 0 0 1px rgba(0,0,0,0.5);
 }
@@ -573,7 +568,7 @@ body.dark .piece.master .piece-inner {
 }
 
 body.dark .btn {
-  background: rgba(255,255,255,0.04);
+  background: rgba(255,255,255,0.1);
   border-color: rgba(255,255,255,0.08);
   box-shadow: 0 12px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
 }
@@ -584,7 +579,7 @@ body.dark .btn:hover:not(:disabled) {
 }
 
 body.dark .overlay {
-  background: rgba(18, 18, 18, 0.7);
+  background: rgba(18, 18, 18, 0.85);
 }
 
 body.dark .win-card {

@@ -115,6 +115,7 @@ export function getAudioTime(): number {
 }
 
 export async function playSound(soundName: 'move' | 'win' | 'select', volume: number = 1.0, time?: number, playbackRate: number = 1.0) {
+  if (localStorage.getItem('klotski_sound') === 'false') return;
   try {
     initAudioSync();
     if (!audioCtx) return;
