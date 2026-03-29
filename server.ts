@@ -30,6 +30,10 @@ async function startServer() {
       setHeaders: (res, path) => {
         if (path.endsWith('.wav')) {
           res.setHeader('Content-Type', 'audio/wav');
+        } else if (path.endsWith('.mp3')) {
+          res.setHeader('Content-Type', 'audio/mpeg');
+        } else if (path.endsWith('.ogg')) {
+          res.setHeader('Content-Type', 'audio/ogg');
         }
       }
     }));

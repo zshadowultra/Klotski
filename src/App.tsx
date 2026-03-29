@@ -9,9 +9,9 @@ import { CONFIG } from './config';
 
 // Use static URLs with a cache-busting query parameter to ensure new uploads are fetched
 const SOUND_URLS = {
-  move: '/sounds/move.wav?v=11',
-  select: '/sounds/select.wav?v=11',
-  win: '/sounds/win.wav?v=11',
+  move: '/sounds/move.mp3?v=11',
+  select: '/sounds/select.mp3?v=11',
+  win: '/sounds/win.mp3?v=11',
 } as const;
 
 const BOARD_W = 4;
