@@ -110,7 +110,11 @@ async function getBuffer(soundName: 'move' | 'select' | 'win'): Promise<AudioBuf
   return promise;
 }
 
-export async function playSound(soundName: 'move' | 'win' | 'select', volume: number = 1.0) {
+export function getAudioTime(): number {
+  return audioCtx ? audioCtx.currentTime : 0;
+}
+
+export async function playSound(soundName: 'move' | 'win' | 'select', volume: number = 1.0, time?: number, playbackRate: number = 1.0) {
   try {
     initAudioSync();
     if (!audioCtx) return;
@@ -125,12 +129,13 @@ export async function playSound(soundName: 'move' | 'win' | 'select', volume: nu
     const gainNode = audioCtx.createGain();
     
     source.buffer = buffer;
+    source.playbackRate.value = playbackRate;
     gainNode.gain.value = volume;
     
     source.connect(gainNode);
     gainNode.connect(audioCtx.destination);
     
-    source.start(0);
+    source.start(time !== undefined ? time : 0);
   } catch (err) {
     console.error('Error playing sound:', err);
   }

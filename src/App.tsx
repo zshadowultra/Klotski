@@ -1,4 +1,4 @@
-import { playSound, initAudioSync, initAudio } from './soundManager';
+import { playSound, initAudioSync, initAudio, getAudioTime } from './soundManager';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { RotateCcw, Undo2, Check, Moon, Sun, ChevronLeft, ChevronRight } from 'lucide-react';
 import { WebHaptics } from 'web-haptics';
@@ -104,13 +104,13 @@ const PieceComponent = React.memo(({
   // Dynamic physics based on input device and drag state.
   const physics = useMemo(() => {
     if (!isDragging) {
-      // Smoothly slide into the grid when released, undoing, or resetting
-      return { stiffness: 400, damping: 35, mass: 1 };
+      // Snappier slide into the grid when released, undoing, or resetting
+      return { stiffness: 500, damping: 30, mass: 0.5 };
     }
     if (pointerType === 'mouse') {
-      return { stiffness: 10000, damping: 100, mass: 0.01 }; // Near-instantaneous
+      return { stiffness: 2000, damping: 40, mass: 0.1 }; // Fast and stable
     }
-    return { stiffness: 3000, damping: 28, mass: 0.05 }; // Smooth touch tracking
+    return { stiffness: 1500, damping: 35, mass: 0.2 }; // Smooth touch tracking
   }, [pointerType, isDragging]);
 
   const xSpring = useSpring(xValue, physics);
@@ -147,7 +147,8 @@ const PieceComponent = React.memo(({
         width: piece.w * cellSize + (piece.w - 1) * GAP,
         height: piece.h * cellSize + (piece.h - 1) * GAP,
         touchAction: 'none',
-        userSelect: 'none'
+        userSelect: 'none',
+        willChange: isDragging ? 'transform' : 'auto'
       }}
       onPointerDown={(e) => {
         setPointerType(e.pointerType as 'mouse' | 'touch' | 'pen');
@@ -293,6 +294,11 @@ export default function App() {
   const playMove = useCallback((count = 1) => {
     const now = Date.now();
     
+    // Prevent overlapping sequences if a multi-step sound is still playing
+    if (now < lastSoundTime.current.move) {
+      return;
+    }
+    
     if (count === 1) {
       // Standard single-step throttle
       if (now - lastSoundTime.current.move > 60) {
@@ -301,13 +307,25 @@ export default function App() {
       }
     } else {
       // For multi-step moves (fast drags), play a sequence of sounds
-      for (let i = 0; i < count; i++) {
-        setTimeout(() => {
-          playSound('move', 0.2).catch(() => {});
-        }, i * 50);
+      // using precise audio context timing if available
+      const startTime = getAudioTime();
+      const safeCount = Math.min(count, 4); // Limit to max 4 sounds per drag burst
+      
+      if (startTime > 0) {
+        for (let i = 0; i < safeCount; i++) {
+          // Increase pitch slightly for each step to make it sound like a slide
+          const rate = 1.0 + (i * 0.05);
+          playSound('move', 0.2, startTime + i * 0.05, rate).catch(() => {});
+        }
+      } else {
+        // Fallback to setTimeout if audio context isn't ready
+        for (let i = 0; i < safeCount; i++) {
+          setTimeout(() => {
+            playSound('move', 0.2).catch(() => {});
+          }, i * 50);
+        }
       }
-      // Set throttle to end of the sequence
-      lastSoundTime.current.move = now + (count * 50);
+      lastSoundTime.current.move = now + (safeCount * 50);
     }
   }, []);
 
