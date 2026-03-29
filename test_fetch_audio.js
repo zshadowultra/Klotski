@@ -9,14 +9,14 @@ import { chromium } from 'playwright';
   // We need to know the URL. The soundManager uses the imported URL.
   // I'll try to fetch a known path.
   const urls = [
-    '/sounds/move.ogg',
-    '/sounds/select.ogg',
-    '/sounds/win.ogg'
+    '/sounds/move.wav',
+    '/sounds/select.wav',
+    '/sounds/win.wav'
   ];
   
   for (const url of urls) {
     try {
-      const res = await page.goto('http://localhost:3000' + url);
+      const res = await page.goto('http://127.0.0.1:3000' + url);
       console.log(`Fetch ${url}:`, res?.status(), res?.headers()['content-type']);
       if (res?.status() === 200) {
         const buffer = await res.body();

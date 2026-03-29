@@ -18,20 +18,20 @@ export function getCanonicalState(pieces: Piece[]): string {
   return grid.join('');
 }
 
-export function isSolvable(initialPieces: Piece[]): boolean {
+export function isSolvable(initialPieces: Piece[]): number | false {
   const visited = new Set<string>();
-  const queue: Piece[][] = [initialPieces];
+  const queue: {pieces: Piece[], steps: number}[] = [{pieces: initialPieces, steps: 0}];
   
   const startState = getCanonicalState(initialPieces);
   visited.add(startState);
   
   let head = 0;
   while (head < queue.length) {
-    const pieces = queue[head++];
+    const {pieces, steps} = queue[head++];
     
     const master = pieces.find(p => p.type === 'master');
     if (master && master.x === 1 && master.y === 3) {
-      return true;
+      return steps;
     }
     
     const grid = Array(BOARD_H).fill(null).map(() => Array(BOARD_W).fill(false));
@@ -58,7 +58,7 @@ export function isSolvable(initialPieces: Piece[]): boolean {
           const state = getCanonicalState(newPieces);
           if (!visited.has(state)) {
             visited.add(state);
-            queue.push(newPieces);
+            queue.push({pieces: newPieces, steps: steps + 1});
           }
         }
       }
@@ -75,7 +75,7 @@ export function isSolvable(initialPieces: Piece[]): boolean {
           const state = getCanonicalState(newPieces);
           if (!visited.has(state)) {
             visited.add(state);
-            queue.push(newPieces);
+            queue.push({pieces: newPieces, steps: steps + 1});
           }
         }
       }
@@ -92,7 +92,7 @@ export function isSolvable(initialPieces: Piece[]): boolean {
           const state = getCanonicalState(newPieces);
           if (!visited.has(state)) {
             visited.add(state);
-            queue.push(newPieces);
+            queue.push({pieces: newPieces, steps: steps + 1});
           }
         }
       }
@@ -109,7 +109,7 @@ export function isSolvable(initialPieces: Piece[]): boolean {
           const state = getCanonicalState(newPieces);
           if (!visited.has(state)) {
             visited.add(state);
-            queue.push(newPieces);
+            queue.push({pieces: newPieces, steps: steps + 1});
           }
         }
       }

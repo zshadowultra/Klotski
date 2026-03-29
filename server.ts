@@ -9,22 +9,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function startServer() {
-  console.log("Checking levels solvability...");
-  let allSolvable = true;
-  for (let i = 0; i < LEVELS.length; i++) {
-    if (!isSolvable(LEVELS[i])) {
-      console.error(`Level ${i + 1} is NOT solvable!`);
-      allSolvable = false;
-    }
-  }
-  if (allSolvable) {
-    console.log(`All ${LEVELS.length} levels are solvable!`);
-  } else {
-    console.warn("Some levels are not solvable. Please check the logs.");
-  }
-
   const app = express();
-  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+  const PORT = 3000;
 
   // API routes FIRST
   app.get("/api/health", (req, res) => {
@@ -42,8 +28,8 @@ async function startServer() {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath, {
       setHeaders: (res, path) => {
-        if (path.endsWith('.mp3')) {
-          res.setHeader('Content-Type', 'audio/mpeg');
+        if (path.endsWith('.wav')) {
+          res.setHeader('Content-Type', 'audio/wav');
         }
       }
     }));

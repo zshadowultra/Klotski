@@ -9,9 +9,9 @@ import { CONFIG } from './config';
 
 // Use static URLs with a cache-busting query parameter to ensure new uploads are fetched
 const SOUND_URLS = {
-  move: '/sounds/move.mp3?v=6',
-  select: '/sounds/select.mp3?v=6',
-  win: '/sounds/win.mp3?v=6',
+  move: '/sounds/move.wav?v=11',
+  select: '/sounds/select.wav?v=11',
+  win: '/sounds/win.wav?v=11',
 } as const;
 
 const BOARD_W = 4;
@@ -101,15 +101,17 @@ const PieceComponent = React.memo(({
   
   const [pointerType, setPointerType] = useState<'mouse' | 'touch' | 'pen'>('touch');
 
-  // Dynamic physics based on input device.
-  // Mouse: Zero latency, infinite stiffness (instant 1:1 tracking).
-  // Touch: Critically damped spring to smooth out finger occlusion and digitizer noise.
+  // Dynamic physics based on input device and drag state.
   const physics = useMemo(() => {
+    if (!isDragging) {
+      // Smoothly slide into the grid when released, undoing, or resetting
+      return { stiffness: 400, damping: 35, mass: 1 };
+    }
     if (pointerType === 'mouse') {
       return { stiffness: 10000, damping: 100, mass: 0.01 }; // Near-instantaneous
     }
     return { stiffness: 3000, damping: 28, mass: 0.05 }; // Smooth touch tracking
-  }, [pointerType]);
+  }, [pointerType, isDragging]);
 
   const xSpring = useSpring(xValue, physics);
   const ySpring = useSpring(yValue, physics);
@@ -137,7 +139,7 @@ const PieceComponent = React.memo(({
         opacity: 1, 
         scale: 1
       }}
-      transition={{ type: 'spring', stiffness: 500, damping: 40, delay: stagger ? 0.03 * staggerIndex : 0 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 1, delay: stagger ? 0.03 * staggerIndex : 0 }}
       style={{
         x: xSpring,
         y: ySpring,
@@ -397,160 +399,155 @@ export default function App() {
 
   
   const processPointerMove = () => {
-    rAFRef.current = null;
-    if (!dragRef.current || !latestPointerRef.current) return;
+    if (!dragRef.current || !latestPointerRef.current) {
+      rAFRef.current = null;
+      return;
+    }
 
-    const state = dragRef.current;
-    const currentPointerX = latestPointerRef.current.x;
-    const currentPointerY = latestPointerRef.current.y;
-    let { pointerX, pointerY, pieces: currentPieces } = state;
+    try {
+      const state = dragRef.current;
+      const currentPointerX = latestPointerRef.current.x;
+      const currentPointerY = latestPointerRef.current.y;
+      let { pointerX, pointerY, pieces: currentPieces } = state;
 
-    let dx = currentPointerX - pointerX;
-    let dy = currentPointerY - pointerY;
+      let dx = currentPointerX - pointerX;
+      let dy = currentPointerY - pointerY;
 
-    const unit = cellSize + GAP;
-    const threshold = unit * 0.51;
+      const unit = cellSize + GAP;
+      const threshold = unit * 0.51;
 
-    let stepsCount = 0;
-    let newPieces = currentPieces;
-    let piece = newPieces.find(p => p.id === state.pieceId)!;
+      let stepsCount = 0;
+      let newPieces = currentPieces;
+      let piece = newPieces.find(p => p.id === state.pieceId)!;
 
-    let keepChecking = true;
-    while (keepChecking) {
-      keepChecking = false;
-      
-      const absDx = Math.abs(dx);
-      const absDy = Math.abs(dy);
-      
-      if (absDx > threshold || absDy > threshold) {
-        if (absDx >= absDy) {
-          const dir = Math.sign(dx);
-          const bounds = getBounds(piece, 'x', newPieces, state.grid);
-          if ((dir > 0 && bounds.maxDelta >= 1) || (dir < 0 && bounds.minDelta <= -1)) {
-            newPieces = newPieces.map(p => p.id === piece.id ? { ...p, x: p.x + dir } : p);
-            piece = newPieces.find(p => p.id === state.pieceId)!;
-            pointerX += dir * unit;
-            dx = currentPointerX - pointerX;
-            stepsCount++;
-            keepChecking = true;
-          } else if (absDy > threshold) {
-            const dirY = Math.sign(dy);
-            const boundsY = getBounds(piece, 'y', newPieces, state.grid);
-            if ((dirY > 0 && boundsY.maxDelta >= 1) || (dirY < 0 && boundsY.minDelta <= -1)) {
-              newPieces = newPieces.map(p => p.id === piece.id ? { ...p, y: p.y + dirY } : p);
+      let keepChecking = true;
+      while (keepChecking) {
+        keepChecking = false;
+        
+        const absDx = Math.abs(dx);
+        const absDy = Math.abs(dy);
+        
+        if (absDx > threshold || absDy > threshold) {
+          if (absDx >= absDy) {
+            const dir = Math.sign(dx);
+            const bounds = getBounds(piece, 'x', newPieces, state.grid);
+            if ((dir > 0 && bounds.maxDelta >= 1) || (dir < 0 && bounds.minDelta <= -1)) {
+              newPieces = newPieces.map(p => p.id === piece.id ? { ...p, x: p.x + dir } : p);
               piece = newPieces.find(p => p.id === state.pieceId)!;
-              pointerY += dirY * unit;
-              dy = currentPointerY - pointerY;
-              stepsCount++;
-              keepChecking = true;
-            }
-          }
-        } else {
-          const dir = Math.sign(dy);
-          const bounds = getBounds(piece, 'y', newPieces, state.grid);
-          if ((dir > 0 && bounds.maxDelta >= 1) || (dir < 0 && bounds.minDelta <= -1)) {
-            newPieces = newPieces.map(p => p.id === piece.id ? { ...p, y: p.y + dir } : p);
-            piece = newPieces.find(p => p.id === state.pieceId)!;
-            pointerY += dir * unit;
-            dy = currentPointerY - pointerY;
-            stepsCount++;
-            keepChecking = true;
-          } else if (absDx > threshold) {
-            const dirX = Math.sign(dx);
-            const boundsX = getBounds(piece, 'x', newPieces, state.grid);
-            if ((dirX > 0 && boundsX.maxDelta >= 1) || (dirX < 0 && boundsX.minDelta <= -1)) {
-              newPieces = newPieces.map(p => p.id === piece.id ? { ...p, x: p.x + dirX } : p);
-              piece = newPieces.find(p => p.id === state.pieceId)!;
-              pointerX += dirX * unit;
+              pointerX += dir * unit;
               dx = currentPointerX - pointerX;
               stepsCount++;
               keepChecking = true;
+            } else if (absDy > threshold) {
+              const dirY = Math.sign(dy);
+              const boundsY = getBounds(piece, 'y', newPieces, state.grid);
+              if ((dirY > 0 && boundsY.maxDelta >= 1) || (dirY < 0 && boundsY.minDelta <= -1)) {
+                newPieces = newPieces.map(p => p.id === piece.id ? { ...p, y: p.y + dirY } : p);
+                piece = newPieces.find(p => p.id === state.pieceId)!;
+                pointerY += dirY * unit;
+                dy = currentPointerY - pointerY;
+                stepsCount++;
+                keepChecking = true;
+              }
+            }
+          } else {
+            const dir = Math.sign(dy);
+            const bounds = getBounds(piece, 'y', newPieces, state.grid);
+            if ((dir > 0 && bounds.maxDelta >= 1) || (dir < 0 && bounds.minDelta <= -1)) {
+              newPieces = newPieces.map(p => p.id === piece.id ? { ...p, y: p.y + dir } : p);
+              piece = newPieces.find(p => p.id === state.pieceId)!;
+              pointerY += dir * unit;
+              dy = currentPointerY - pointerY;
+              stepsCount++;
+              keepChecking = true;
+            } else if (absDx > threshold) {
+              const dirX = Math.sign(dx);
+              const boundsX = getBounds(piece, 'x', newPieces, state.grid);
+              if ((dirX > 0 && boundsX.maxDelta >= 1) || (dirX < 0 && boundsX.minDelta <= -1)) {
+                newPieces = newPieces.map(p => p.id === piece.id ? { ...p, x: p.x + dirX } : p);
+                piece = newPieces.find(p => p.id === state.pieceId)!;
+                pointerX += dirX * unit;
+                dx = currentPointerX - pointerX;
+                stepsCount++;
+                keepChecking = true;
+              }
             }
           }
         }
       }
-    }
 
-    const boundsX = getBounds(piece, 'x', newPieces, state.grid);
-    const boundsY = getBounds(piece, 'y', newPieces, state.grid);
-    const minPx = boundsX.minDelta * unit;
-    const maxPx = boundsX.maxDelta * unit;
-    const minPy = boundsY.minDelta * unit;
-    const maxPy = boundsY.maxDelta * unit;
-    
-    dx = currentPointerX - pointerX;
-    dy = currentPointerY - pointerY;
-
-    if (dx > maxPx) {
-      pointerX = currentPointerX - maxPx;
-      dx = maxPx;
-    } else if (dx < minPx) {
-      pointerX = currentPointerX - minPx;
-      dx = minPx;
-    }
-
-    if (dy > maxPy) {
-      pointerY = currentPointerY - maxPy;
-      dy = maxPy;
-    } else if (dy < minPy) {
-      pointerY = currentPointerY - minPy;
-      dy = minPy;
-    }
-
-    const offsetX = dx;
-    const offsetY = dy;
-
-    state.pointerX = pointerX;
-    state.pointerY = pointerY;
-    state.pieces = newPieces;
-    state.offsetX = offsetX;
-    state.offsetY = offsetY;
-    if (stepsCount > 0) state.hasMoved = true;
-
-    if (stepsCount > 0) {
-      piecesRef.current = newPieces;
-      haptics.trigger('light');
-      playMove(stepsCount);
-      const master = newPieces.find(p => p.id === 'master')!;
-      if (master.x === 1 && master.y === 3) {
-        setPieces(newPieces);
-        setIsWon(true);
-        haptics.trigger('success');
-        playWin();
-        dragRef.current = null;
-        setDragState(null);
-        return;
-      }
-    }
-
-    const applyStickiness = (val: number) => {
-      const abs = Math.abs(val);
-      if (abs < 6) return 0;
-      if (abs < 32) {
-        return Math.sign(val) * (abs - 6) * (32 / 26);
-      }
-      return val;
-    };
-
-    const motionValues = pieceMotionValues.current.get(piece.id);
-    if (motionValues) {
-      let renderDx = offsetX;
-      let renderDy = offsetY;
+      const boundsX = getBounds(piece, 'x', newPieces, state.grid);
+      const boundsY = getBounds(piece, 'y', newPieces, state.grid);
+      const minPx = boundsX.minDelta * unit;
+      const maxPx = boundsX.maxDelta * unit;
+      const minPy = boundsY.minDelta * unit;
+      const maxPy = boundsY.maxDelta * unit;
       
-      // Visual constraint: strictly orthogonal rendering to prevent diagonal bleed.
-      // The useSpring in PieceComponent will smooth out the transitions between axes.
-      if (Math.abs(renderDx) > 0 && Math.abs(renderDy) > 0) {
-        if (Math.abs(renderDx) >= Math.abs(renderDy)) {
-          renderDy = 0;
-        } else {
-          renderDx = 0;
+      dx = currentPointerX - pointerX;
+      dy = currentPointerY - pointerY;
+
+      if (dx > maxPx) {
+        pointerX = currentPointerX - maxPx;
+        dx = maxPx;
+      } else if (dx < minPx) {
+        pointerX = currentPointerX - minPx;
+        dx = minPx;
+      }
+
+      if (dy > maxPy) {
+        pointerY = currentPointerY - maxPy;
+        dy = maxPy;
+      } else if (dy < minPy) {
+        pointerY = currentPointerY - minPy;
+        dy = minPy;
+      }
+
+      const offsetX = dx;
+      const offsetY = dy;
+
+      state.pointerX = pointerX;
+      state.pointerY = pointerY;
+      state.pieces = newPieces;
+      state.offsetX = offsetX;
+      state.offsetY = offsetY;
+      if (stepsCount > 0) state.hasMoved = true;
+
+      if (stepsCount > 0) {
+        piecesRef.current = newPieces;
+        haptics.trigger('light');
+        playMove(stepsCount);
+        const master = newPieces.find(p => p.id === 'master')!;
+        if (master.x === 1 && master.y === 3) {
+          setPieces(newPieces);
+          setIsWon(true);
+          haptics.trigger('success');
+          playWin();
+          dragRef.current = null;
+          setDragState(null);
+          return;
         }
       }
 
-      motionValues.x.set(BOARD_PADDING + piece.x * unit + applyStickiness(renderDx));
-      motionValues.y.set(BOARD_PADDING + piece.y * unit + applyStickiness(renderDy));
+      const applyStickiness = (val: number) => {
+        const abs = Math.abs(val);
+        if (abs < 6) return 0;
+        if (abs < 32) {
+          return Math.sign(val) * (abs - 6) * (32 / 26);
+        }
+        return val;
+      };
+
+      const motionValues = pieceMotionValues.current.get(piece.id);
+      if (motionValues) {
+        let renderDx = offsetX;
+        let renderDy = offsetY;
+
+        motionValues.x.set(BOARD_PADDING + piece.x * unit + applyStickiness(renderDx));
+        motionValues.y.set(BOARD_PADDING + piece.y * unit + applyStickiness(renderDy));
+      }
+    } finally {
+      rAFRef.current = null;
     }
-    rAFRef.current = null;
   };
 
   const handlePointerMove = (e: PointerEvent) => {
@@ -700,9 +697,9 @@ const handlePointerCancel = (_e: PointerEvent) => {
     const onUp = (e: PointerEvent) => handlersRef.current.handlePointerUp(e);
     const onCancel = (e: PointerEvent) => handlersRef.current.handlePointerCancel(e);
     
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onCancel);
+    window.addEventListener('pointermove', onMove, { passive: true });
+    window.addEventListener('pointerup', onUp, { passive: true });
+    window.addEventListener('pointercancel', onCancel, { passive: true });
 
     return () => {
       window.removeEventListener('pointermove', onMove);
