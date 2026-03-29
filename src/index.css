@@ -313,7 +313,7 @@ body {
   color: var(--ink);
   cursor: pointer;
   transition: transform 0.25s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.25s cubic-bezier(0.2, 0.7, 0.2, 1), background-color 0.25s cubic-bezier(0.2, 0.7, 0.2, 1);
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(4px);
 }
 
 .btn:hover:not(:disabled) {
@@ -417,7 +417,7 @@ body.dark .level-selector {
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(228, 228, 225, 0.6);
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(8px);
   display: flex;
   flex-direction: column;
   align-items: center;
